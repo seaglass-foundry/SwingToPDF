@@ -33,6 +33,6 @@ module com.seaglassfoundry.swingtopdf {
     // All internal types are package-private or module-scoped.
 
     requires transitive java.desktop;   // javax.swing, java.awt, sun.font (via --add-opens)
-    requires transitive org.apache.pdfbox; // PDFBox 3.x PDF document model and content streams
+    requires org.apache.pdfbox;            // PDFBox 3.x PDF document model and content streams
     requires org.slf4j;                 // Logging (slf4j-api)
 }
