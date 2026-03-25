@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.seaglassfoundry</groupId>
+    <artifactId>swingtopdf</artifactId>
+    <version>1.0.1</version>
+    <packaging>jar</packaging>
+
+    <name>swingtopdf</name>
+    <description>Convert any Swing JComponent to true vector PDF using PDFBox + Graphics2D bridge</description>
+    <url>https://seaglassfoundry.com</url>
+
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Seaglass Foundry</name>
+            <email>rich@seaglassfoundry.com</email>
+            <organization>Seaglass Foundry</organization>
+            <organizationUrl>https://seaglassfoundry.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/seaglass-foundry/swingtopdf.git</connection>
+        <developerConnection>scm:git:git@github.com:seaglass-foundry/swingtopdf.git</developerConnection>
+        <url>https://github.com/seaglass-foundry/swingtopdf</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/seaglass-foundry/swingtopdf/issues</url>
+    </issueManagement>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <pdfbox.version>3.0.7</pdfbox.version>
+        <project.build.outputTimestamp>2026-03-24T00:00:00Z</project.build.outputTimestamp>
+    </properties>
+
+    <dependencies>
+        <!-- Core PDFBox -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>de.rototor.pdfbox</groupId>
+            <artifactId>graphics2d</artifactId>
+            <version>3.0.5</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.5.4</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <argLine>
+                        --add-opens java.desktop/javax.swing=com.seaglassfoundry.swingtopdf
+                        --add-opens java.desktop/java.awt=com.seaglassfoundry.swingtopdf
+                        --add-opens java.desktop/sun.font=com.seaglassfoundry.swingtopdf
+                        --add-opens java.desktop/javax.swing=ALL-UNNAMED
+                        --add-opens java.desktop/java.awt=ALL-UNNAMED
+                        --add-opens java.desktop/sun.font=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <jvmArgs>
+                        <jvmArg>--add-opens=java.desktop/javax.swing=com.seaglassfoundry.swingtopdf</jvmArg>
+                        <jvmArg>--add-opens=java.desktop/java.awt=com.seaglassfoundry.swingtopdf</jvmArg>
+                        <jvmArg>--add-opens=java.desktop/sun.font=com.seaglassfoundry.swingtopdf</jvmArg>
+                        <jvmArg>--add-opens=java.desktop/javax.swing=ALL-UNNAMED</jvmArg>
+                        <jvmArg>--add-opens=java.desktop/java.awt=ALL-UNNAMED</jvmArg>
+                        <jvmArg>--add-opens=java.desktop/sun.font=ALL-UNNAMED</jvmArg>
+                    </jvmArgs>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.1</version>
+                <configuration>
+                    <release>17</release>
+                    <additionalJOptions>
+                        <additionalJOption>--add-opens</additionalJOption>
+                        <additionalJOption>java.desktop/javax.swing=com.seaglassfoundry.swingtopdf</additionalJOption>
+                        <additionalJOption>--add-opens</additionalJOption>
+                        <additionalJOption>java.desktop/java.awt=com.seaglassfoundry.swingtopdf</additionalJOption>
+                        <additionalJOption>--add-opens</additionalJOption>
+                        <additionalJOption>java.desktop/sun.font=com.seaglassfoundry.swingtopdf</additionalJOption>
+                    </additionalJOptions>
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                    <windowtitle>swingtopdf ${project.version} API</windowtitle>
+                    <doctitle>swingtopdf ${project.version} API</doctitle>
+                    <header>swingtopdf ${project.version}</header>
+                    <bottom>
+                        <![CDATA[Copyright &#169; 2026 Seaglass Foundry. All rights reserved.]]>
+                    </bottom>
+                    <show>public</show>
+                    <nohelp>false</nohelp>
+                    <author>false</author>
+                    <links>
+                        <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+                        <link>https://javadoc.io/doc/org.apache.pdfbox/pdfbox/3.0.7/</link>
+                    </links>
+                    <overview>${project.basedir}/src/main/java/com/seaglassfoundry/swingtopdf/package-info.java</overview>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Automatic-Module-Name>com.seaglassfoundry.swingtopdf</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.4</version>
+                        <configuration>
+                            <keyname>CC23BB52</keyname>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
