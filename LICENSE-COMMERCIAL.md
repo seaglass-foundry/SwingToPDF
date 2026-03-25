@@ -1,6 +1,24 @@
 # Commercial License
 
+Copyright (c) 2026 Seaglass Foundry. All rights reserved.
+
 swingtopdf is available under a commercial license for use in closed-source and proprietary software.
+
+## Grant of Rights
+
+A commercial license grants the purchasing organization the following rights:
+
+- **Use** -- integrate swingtopdf into any number of internal or customer-facing applications within the organization
+- **Modify** -- create modifications or derivative works of the library for internal use
+- **Distribute** -- distribute swingtopdf as part of your compiled applications to your end-users, customers, or clients
+- **Sublicense** -- grant your end-users the right to use your application that incorporates swingtopdf (but not to extract or redistribute the library itself)
+- **No source disclosure** -- you are not required to disclose your application's source code
+
+## Restrictions
+
+- The license does not grant the right to redistribute swingtopdf as a standalone library or as part of a developer toolkit, framework, or library intended for use by other developers
+- The license does not grant the right to sublicense swingtopdf for use outside of your compiled applications
+- For OEM or redistribution licensing, contact [rich@seaglassfoundry.com](mailto:rich@seaglassfoundry.com)
 
 ## Terms
 

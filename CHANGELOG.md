@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1] - 2026-03-25
 
+### Changed
+
+- PDFBox module dependency is no longer transitive; consumers who directly use PDFBox types must add their own dependency
+
+## [1.0.0] - 2026-03-24
+
 ### Added
 
 - Core Swing-to-PDF export engine with true vector output via Apache PDFBox 3.x
@@ -26,7 +32,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pluggable ImageHandler for custom image encoding
 - Java 9+ module system support (module `com.seaglassfoundry.swingtopdf`)
 - Requires Java 17+
-
-### Changed
-
-- PDFBox module dependency is no longer transitive; consumers who directly use PDFBox types must add their own dependency

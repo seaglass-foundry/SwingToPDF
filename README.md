@@ -80,9 +80,14 @@ swingtopdf is dual-licensed:
 
 **Building a commercial product?** Purchase a commercial license at [seaglassfoundry.com](https://seaglassfoundry.com).
 
+## Documentation
+
+For the full manual -- export modes, pagination, headers/footers, AcroForm fields, font embedding, component reference, and more -- see the [Documentation](docs/index.md).
+
 ## Links
 
 - Website: [seaglassfoundry.com](https://seaglassfoundry.com)
+- Documentation: [docs/index.md](docs/index.md)
 - Commercial licensing: [seaglassfoundry.com](https://seaglassfoundry.com)
 - Issues: [GitHub Issues](https://github.com/seaglass-foundry/swingtopdf/issues)
 - Contact: [rich@seaglassfoundry.com](mailto:rich@seaglassfoundry.com)
