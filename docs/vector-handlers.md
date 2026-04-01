@@ -96,6 +96,32 @@ User-registered handlers take priority over the library's built-in handlers. If 
 
 ---
 
+## Children Are Not Traversed
+
+When a vector handler is registered for a component type, that component is treated as a **leaf node**. Its child components are **not** automatically rendered -- the handler is responsible for drawing everything within the component's bounds.
+
+If your component is a container with children you want rendered, you must draw them yourself in the handler body. For example:
+
+```java
+.registerHandler(MyContainer.class, (comp, g2, bounds) -> {
+    // Draw the container's own content
+    g2.setColor(Color.WHITE);
+    g2.fill(bounds);
+
+    // Manually paint children into the same Graphics2D
+    for (Component child : ((Container) comp).getComponents()) {
+        Graphics2D childG2 = (Graphics2D) g2.create(
+                child.getX(), child.getY(), child.getWidth(), child.getHeight());
+        child.paint(childG2);
+        childG2.dispose();
+    }
+})
+```
+
+> **Tip:** If you only need vector output for a specific child (like a chart) inside a larger panel, register the handler on the chart component's class rather than the parent container. This way the library handles the container and siblings normally, and only the chart is vector-rendered.
+
+---
+
 ## Coordinate System
 
 The `bounds` rectangle always starts at `(0, 0)` with the component's width and height. The `Graphics2D` is pre-configured so that drawing within `bounds` maps to the component's correct position on the PDF page. You do not need to account for the component's position in the Swing hierarchy.

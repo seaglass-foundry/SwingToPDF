@@ -41,11 +41,12 @@ final class VectorHandlerAdapter implements ComponentHandler {
         try {
             Rectangle2D bounds = new Rectangle2D.Double(0, 0, w, h);
             userHandler.render(comp, g2, bounds);
-        } finally {
             g2.dispose();
+            PDFormXObject xform = g2.getXFormObject();
+            ctx.writer().drawFormXObject(xform, absX, absY, w, h);
+        } catch (RuntimeException | IOException ex) {
+            g2.dispose();
+            throw ex;
         }
-
-        PDFormXObject xform = g2.getXFormObject();
-        ctx.writer().drawFormXObject(xform, absX, absY, w, h);
     }
 }

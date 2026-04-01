@@ -38,6 +38,12 @@ import java.io.IOException;
  * that drawing within {@code bounds} maps to the component's position on the
  * PDF page.
  *
+ * <h2>Children are not traversed</h2>
+ * When a vector handler is registered for a component type, that component is
+ * treated as a leaf node during rendering. Its child components are
+ * <em>not</em> automatically rendered — the handler is responsible for drawing
+ * everything within the component's bounds.
+ *
  * @since 1.1.0
  */
 @FunctionalInterface

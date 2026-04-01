@@ -259,6 +259,101 @@ class VectorComponentHandlerTest {
     }
 
     // -----------------------------------------------------------------------
+    // Exception in user handler propagates cleanly
+    // -----------------------------------------------------------------------
+
+    @Test
+    void vectorHandler_exceptionInHandler_propagates(@TempDir Path tmp) throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "Skipped in headless environment");
+
+        CustomDrawingPanel widget = new CustomDrawingPanel();
+        JPanel panel = wrapInPanel(widget, 300, 200);
+
+        Path pdf = tmp.resolve("exception_handler.pdf");
+        assertThatThrownBy(() ->
+                SwingPdfExporter.from(panel)
+                        .pageSize(PageSize.A4)
+                        .registerHandler(CustomDrawingPanel.class, (comp, g2, bounds) -> {
+                            g2.drawString("Before error", 10, 20);
+                            throw new RuntimeException("Handler failed");
+                        })
+                        .export(pdf)
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("Handler failed");
+    }
+
+    // -----------------------------------------------------------------------
+    // Zero-size component is silently skipped
+    // -----------------------------------------------------------------------
+
+    @Test
+    void vectorHandler_zeroSizeComponent_skippedWithoutError(@TempDir Path tmp) throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "Skipped in headless environment");
+
+        AtomicInteger callCount = new AtomicInteger(0);
+
+        // Use a FlowLayout panel so the zero-preferred-size widget stays at 0x0
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setSize(300, 200);
+
+        CustomDrawingPanel widget = new CustomDrawingPanel();
+        widget.setPreferredSize(new Dimension(0, 0));
+        panel.add(widget);
+        panel.doLayout();
+        panel.validate();
+
+        Path pdf = tmp.resolve("zero_size.pdf");
+        SwingPdfExporter.from(panel)
+                .pageSize(PageSize.A4)
+                .registerHandler(CustomDrawingPanel.class, (comp, g2, bounds) -> {
+                    callCount.incrementAndGet();
+                })
+                .export(pdf);
+
+        // Handler should NOT have been called for a zero-size component
+        assertThat(callCount.get()).isEqualTo(0);
+        try (PDDocument doc = Loader.loadPDF(pdf.toFile())) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(1);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Registering same type twice: last handler wins
+    // -----------------------------------------------------------------------
+
+    @Test
+    void vectorHandler_duplicateRegistration_lastHandlerWins(@TempDir Path tmp) throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "Skipped in headless environment");
+
+        AtomicInteger firstCount = new AtomicInteger(0);
+        AtomicInteger secondCount = new AtomicInteger(0);
+
+        CustomDrawingPanel widget = new CustomDrawingPanel();
+        JPanel panel = wrapInPanel(widget, 300, 200);
+
+        Path pdf = tmp.resolve("duplicate_registration.pdf");
+        SwingPdfExporter.from(panel)
+                .pageSize(PageSize.A4)
+                .registerHandler(CustomDrawingPanel.class, (comp, g2, bounds) -> {
+                    firstCount.incrementAndGet();
+                    g2.drawString("First handler", 10, 20);
+                })
+                .registerHandler(CustomDrawingPanel.class, (comp, g2, bounds) -> {
+                    secondCount.incrementAndGet();
+                    g2.drawString("Second handler", 10, 20);
+                })
+                .export(pdf);
+
+        // Only the second (last) handler should have been called
+        assertThat(firstCount.get()).isEqualTo(0);
+        assertThat(secondCount.get()).isGreaterThan(0);
+        try (PDDocument doc = Loader.loadPDF(pdf.toFile())) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(1);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Null arguments rejected
     // -----------------------------------------------------------------------
 
