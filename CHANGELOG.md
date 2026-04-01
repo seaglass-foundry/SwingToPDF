@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-31
+
+### Added
+
+- Vector component handler API (`registerHandler`) for rendering custom-painted components as vector PDF instead of rasterised bitmaps
+- New public interface `VectorComponentHandler` — a functional interface that receives a PDF-backed `Graphics2D` for drawing
+- Text drawn via vector handlers remains selectable; shapes are resolution-independent
+- User-registered handlers override built-in handlers for the same component type
+- New dependency: PdfBoxGraphics2D (Graphics2D bridge for vector rendering via PDFBox)
+
 ## [1.0.1] - 2026-03-25
 
 ### Changed

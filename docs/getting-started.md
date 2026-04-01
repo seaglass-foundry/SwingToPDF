@@ -144,8 +144,26 @@ If the component has zero size and no preferred size, SwingToPDF throws a `Layou
 
 ---
 
+## Vector Rendering for Custom Components
+
+Components that perform custom painting (like chart libraries) are rasterized by default. Use `registerHandler()` to render them as vector PDF:
+
+```java
+SwingPdfExporter.from(panel)
+    .pageSize(PageSize.A4)
+    .registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+        ((ChartPanel) comp).getChart().draw(g2, bounds);
+    })
+    .export(Path.of("chart.pdf"));
+```
+
+Text drawn via the handler remains selectable and shapes are resolution-independent. See the [Vector Handlers](vector-handlers.md) guide for details.
+
+---
+
 ## Next Steps
 
 - [Export Modes](export-modes.md) -- understand `DATA_REPORT` vs `UI_SNAPSHOT`
 - [Builder Options](builder-options.md) -- explore every configuration option
 - [Supported Components](components.md) -- see how each Swing component renders
+- [Vector Handlers](vector-handlers.md) -- render custom-painted components as vector PDF

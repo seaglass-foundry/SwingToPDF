@@ -1,6 +1,6 @@
 # SwingToPDF Documentation
 
-**Version 1.0.1**
+**Version 1.1.0**
 
 SwingToPDF converts any Java Swing component tree into genuine vector PDF output. Text remains selectable, graphics stay sharp at any zoom level, and the output is a fraction of the size of rasterized alternatives.
 
@@ -18,6 +18,7 @@ SwingToPDF converts any Java Swing component tree into genuine vector PDF output
 | [AcroForm Fields](acroform.md) | Exporting interactive, fillable PDF form fields from Swing components |
 | [Fonts](fonts.md) | Font embedding, the resolution chain, custom `FontResolver`, and fallbacks |
 | [Supported Components](components.md) | Every Swing component with handler-specific rendering details |
+| [Vector Handlers](vector-handlers.md) | Render custom-painted components as vector PDF with `registerHandler` |
 | [Troubleshooting](troubleshooting.md) | Common issues, error messages, and how to fix them |
 
 ---
@@ -38,7 +39,8 @@ SwingPdfExporter.from(myPanel)
 ## Key Concepts
 
 - **Vector-first rendering** -- handlers read Swing component state directly and emit PDF drawing operations. Text is real PDF text (selectable, searchable); shapes are real vector paths.
-- **Raster fallback** -- components without a dedicated handler (or with custom `paintComponent` overrides) are rasterized at high quality and embedded as images.
+- **Vector component handlers** -- register a `VectorComponentHandler` via `registerHandler()` to render custom-painted components (charts, diagrams) as vector PDF instead of rasterised bitmaps.
+- **Raster fallback** -- components without a dedicated handler or registered vector handler (or with custom `paintComponent` overrides) are rasterized at high quality and embedded as images.
 - **Two export modes** -- `DATA_REPORT` exports *all* data (every table row, every tab, full scroll content). `UI_SNAPSHOT` captures exactly what is visible on screen.
 - **Automatic pagination** -- content taller than one page is split intelligently at row boundaries and keep-together markers.
 - **AcroForm support** -- opt-in interactive PDF form fields that map Swing input components to their PDF equivalents.

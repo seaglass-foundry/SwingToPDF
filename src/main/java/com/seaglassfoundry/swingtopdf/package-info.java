@@ -46,6 +46,10 @@
  *       fonts the library cannot locate automatically.</li>
  *   <li>{@link com.seaglassfoundry.swingtopdf.api.ImageHandler}  -- custom image encoding (e.g. JPEG
  *       compression instead of the default lossless PNG).</li>
+ *   <li>{@link com.seaglassfoundry.swingtopdf.api.VectorComponentHandler}  -- custom vector rendering for
+ *       components that perform custom painting (e.g. chart libraries). The handler receives a PDF-backed
+ *       {@link java.awt.Graphics2D} so all drawing operations produce vector PDF output instead of
+ *       rasterised bitmaps.</li>
  * </ul>
  *
  * <h2>Thread safety</h2>

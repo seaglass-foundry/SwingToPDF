@@ -31,6 +31,9 @@
  *       <td>Custom font file lookup  -- called when the built-in JVM and OS scan cannot find a {@code .ttf/.otf} file</td></tr>
  *   <tr><td>{@link ImageHandler}</td>
  *       <td>Custom image encoding  -- e.g. JPEG compression for photos instead of the default lossless PNG</td></tr>
+ *   <tr><td>{@link VectorComponentHandler}</td>
+ *       <td>Custom vector rendering  -- render custom-painted components (e.g. charts) via a PDF-backed {@code Graphics2D}
+ *           instead of rasterising them</td></tr>
  * </table>
  *
  * <h2>Exception hierarchy</h2>

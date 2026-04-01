@@ -8,6 +8,7 @@ swingtopdf converts any Java Swing component tree into genuine vector PDF output
 
 - **True vector output** -- text, shapes, and lines render as PDF drawing operations, not images
 - **20+ component handlers** -- JTable, JTree, JList, JTabbedPane, JTextPane, JEditorPane, and more, each with specialized rendering
+- **Vector component handlers** -- register custom `Graphics2D` renderers for components like JFreeChart so their output is vector PDF (selectable text, sharp shapes) instead of rasterised bitmaps
 - **AcroForm interactive fields** -- export JTextField, JCheckBox, JRadioButton, JComboBox, JTextArea, and JPasswordField as fillable PDF form fields
 - **Rich text and HTML** -- JTextPane and JEditorPane content renders with formatting preserved
 - **Two export modes** -- `DATA_REPORT` exports all data (full scroll content, all tabs) with auto-pagination; `UI_SNAPSHOT` captures only what is visible on screen
@@ -48,6 +49,17 @@ SwingPdfExporter.from(myPanel)
     .margins(36, 36, 36, 36)
     .title("My Report")
     .export(Path.of("report.pdf"));
+```
+
+To render a custom-painted component as vector PDF:
+
+```java
+SwingPdfExporter.from(chartPanel)
+    .pageSize(PageSize.A4)
+    .registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+        ((ChartPanel) comp).getChart().draw(g2, bounds);
+    })
+    .export(Path.of("chart.pdf"));
 ```
 
 To enable fillable form fields:

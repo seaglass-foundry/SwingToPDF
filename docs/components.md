@@ -254,15 +254,35 @@ The scroll bars themselves are rendered by the JScrollBarHandler.
 
 ---
 
+## Vector Component Handlers
+
+Components that perform custom painting (e.g. chart libraries, diagram renderers, or any `JComponent` subclass that overrides `paintComponent`) would normally be rasterized. You can register a `VectorComponentHandler` via `registerHandler()` to render them as vector PDF instead:
+
+```java
+SwingPdfExporter.from(panel)
+    .registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+        ((ChartPanel) comp).getChart().draw(g2, bounds);
+    })
+    .export(path);
+```
+
+The handler receives a PDF-backed `Graphics2D`. All drawing operations (shapes, text, images) are emitted as vector PDF primitives -- text remains selectable and shapes are resolution-independent.
+
+User-registered handlers override built-in handlers for the same component type. See the [Vector Handlers](vector-handlers.md) guide for details.
+
+---
+
 ## Raster Fallback
 
-Any component without a dedicated handler -- or a `JPanel` subclass with a custom `paintComponent` override -- is rendered via the raster fallback:
+Any component without a dedicated handler or registered vector handler -- or a `JPanel` subclass with a custom `paintComponent` override and no registered handler -- is rendered via the raster fallback:
 
 1. A `BufferedImage` is created at the component's dimensions
 2. The component's `paint(Graphics)` method draws into it with high-quality rendering hints (antialiasing, text antialiasing, quality rendering)
 3. The image is embedded in the PDF via the deduplicating image encoder
 
 This ensures every Swing component produces output, even custom or third-party components. The trade-off is that rasterized content is not selectable or searchable as text.
+
+> **Tip:** If you have a custom-painted component and want vector output, register a `VectorComponentHandler` for it instead of accepting the raster fallback. See [Vector Handlers](vector-handlers.md).
 
 ---
 

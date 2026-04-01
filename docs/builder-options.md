@@ -206,6 +206,33 @@ Registers a custom image embedding handler. Called whenever a `BufferedImage` ne
 
 ---
 
+## Vector Component Handlers
+
+### registerHandler
+
+```java
+.registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+    ((ChartPanel) comp).getChart().draw(g2, bounds);
+})
+```
+
+Registers a custom vector handler for a specific component type. When the rendering pipeline encounters a component matching `type` (or a subclass of it), the handler is called with a PDF-backed `Graphics2D`. All drawing operations are emitted as vector PDF primitives -- text remains selectable and shapes are resolution-independent.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `type` | `Class<T extends Component>` | The component class to handle; must not be null |
+| `handler` | `VectorComponentHandler` | The vector handler; must not be null |
+
+**Default:** No custom handlers registered (custom-painted components are rasterized)
+
+User-registered handlers override built-in handlers for the same type. Multiple handlers may be registered for different types.
+
+**Throws:** `NullPointerException` if `type` or `handler` is null.
+
+See [Vector Handlers](vector-handlers.md) for a detailed guide.
+
+---
+
 ## Terminal Methods
 
 These methods trigger the actual export. Call exactly one to produce output.
@@ -276,6 +303,11 @@ SwingPdfExporter.from(rootPanel)
     // Custom hooks
     .withFontResolver(font -> Optional.empty())
     .withImageHandler((img, doc) -> Optional.empty())
+
+    // Vector handlers for custom-painted components
+    .registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+        ((ChartPanel) comp).getChart().draw(g2, bounds);
+    })
 
     // Export
     .export(Path.of("annual-report.pdf"));
