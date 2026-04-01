@@ -34,5 +34,6 @@ module com.seaglassfoundry.swingtopdf {
 
     requires transitive java.desktop;   // javax.swing, java.awt, sun.font (via --add-opens)
     requires org.apache.pdfbox;            // PDFBox 3.x PDF document model and content streams
+    requires de.rototor.pdfbox.graphics2d; // PdfBoxGraphics2D — Graphics2D bridge for vector rendering
     requires org.slf4j;                 // Logging (slf4j-api)
 }

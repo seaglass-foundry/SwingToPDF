@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
 import org.slf4j.Logger;
@@ -284,6 +285,31 @@ final class PdfPageWriter {
         cs.transform(org.apache.pdfbox.util.Matrix.getTranslateInstance(pdfX(x), pdfY(y, h)));
         cs.transform(org.apache.pdfbox.util.Matrix.getScaleInstance(pt(w), pt(h)));
         cs.drawImage(img, 0, 0, 1, 1);
+        cs.restoreGraphicsState();
+    }
+
+    /**
+     * Draw a vector form XObject (from {@code PdfBoxGraphics2D}) at the given
+     * Swing-pixel bounds.
+     *
+     * <p>The form's internal coordinate space is {@code [0, 0, w, h]} in Swing
+     * pixels. This method translates to the correct PDF page position and scales
+     * from pixel units to PDF points.
+     *
+     * @param form the form XObject produced by {@code PdfBoxGraphics2D.getXFormObject()}
+     * @param x    left edge in Swing root-space pixels
+     * @param y    top edge in Swing root-space pixels
+     * @param w    width in Swing pixels
+     * @param h    height in Swing pixels
+     */
+    void drawFormXObject(PDFormXObject form, float x, float y, float w, float h) throws IOException {
+        if (w <= 0 || h <= 0) return;
+        cs.saveGraphicsState();
+        // Translate to the component's bottom-left corner in PDF page coordinates
+        cs.transform(org.apache.pdfbox.util.Matrix.getTranslateInstance(pdfX(x), pdfY(y, h)));
+        // Scale from the form's pixel coordinate space to PDF points
+        cs.transform(org.apache.pdfbox.util.Matrix.getScaleInstance(scale, scale));
+        cs.drawForm(form);
         cs.restoreGraphicsState();
     }
 

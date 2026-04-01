@@ -1,5 +1,7 @@
 package com.seaglassfoundry.swingtopdf.internal;
 
+import java.util.Map;
+
 import javax.swing.JComponent;
 
 import com.seaglassfoundry.swingtopdf.api.ExportMode;
@@ -8,6 +10,7 @@ import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
 import com.seaglassfoundry.swingtopdf.api.ImageHandler;
 import com.seaglassfoundry.swingtopdf.api.Orientation;
 import com.seaglassfoundry.swingtopdf.api.PageSize;
+import com.seaglassfoundry.swingtopdf.api.VectorComponentHandler;
 
 /**
  * Immutable snapshot of all builder settings passed from
@@ -32,6 +35,7 @@ import com.seaglassfoundry.swingtopdf.api.PageSize;
  * @param header          header band definition, or {@code null}
  * @param footer          footer band definition, or {@code null}
  * @param acroFormEnabled whether to generate interactive form fields
+ * @param vectorHandlers  user-registered vector component handlers (type to handler)
  */
 public record ExportConfig(
         JComponent root,
@@ -48,7 +52,8 @@ public record ExportConfig(
         String       keywords,
         HeaderFooter header,
         HeaderFooter footer,
-        boolean      acroFormEnabled
+        boolean      acroFormEnabled,
+        Map<Class<?>, VectorComponentHandler> vectorHandlers
 ) {
     /** Effective page width in points, accounting for orientation. */
     public float effectivePageWidthPt() {

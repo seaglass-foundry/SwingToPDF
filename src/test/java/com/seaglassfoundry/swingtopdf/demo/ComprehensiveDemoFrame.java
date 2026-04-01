@@ -1,6 +1,7 @@
 package com.seaglassfoundry.swingtopdf.demo;
 
 import java.awt.Adjustable;
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -8,13 +9,20 @@ import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.event.ActionListener;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Random;
@@ -74,6 +82,7 @@ import com.seaglassfoundry.swingtopdf.SwingPdfExporter;
 import com.seaglassfoundry.swingtopdf.api.ExportMode;
 import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
 import com.seaglassfoundry.swingtopdf.api.PageSize;
+import com.seaglassfoundry.swingtopdf.api.VectorComponentHandler;
 
 /**
  * Interactive demo frame with 14 tabs, each showcasing different Swing components.
@@ -111,6 +120,7 @@ public class ComprehensiveDemoFrame {
             tabs.addTab("Mixed UI",         tabWrapper("mixed-ui",         buildMixedUi()));
             tabs.addTab("Headers & Footers", hfTabWrapper("headers-footers", buildHeaderFooterTable()));
             tabs.addTab("AcroForm",         acroTabWrapper("acroform",     buildAcroForm()));
+            tabs.addTab("Vector Handlers", vectorTabWrapper("vector-handlers", buildVectorHandlers()));
 
             frame.getContentPane().add(tabs);
             frame.setLocationRelativeTo(null);
@@ -1625,6 +1635,360 @@ public class ComprehensiveDemoFrame {
         root.setPreferredSize(new Dimension(560, 660));
         return root;
     }
+
+    // -----------------------------------------------------------------------
+    // Tab — Vector Handlers (custom Graphics2D rendering to vector PDF)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Like {@link #tabWrapper} but exports using {@code registerHandler()} for
+     * custom-painted components so their output is vector instead of rasterised.
+     */
+    private static JPanel vectorTabWrapper(String name, JPanel content) {
+        JPanel wrapper = new JPanel(new BorderLayout(0, 4));
+        wrapper.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        wrapper.add(scroll, BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
+        JLabel status = new JLabel(" ");
+        status.setForeground(new Color(0x3A7D44));
+        JButton btn = new JButton("Generate PDF");
+        btn.setFont(btn.getFont().deriveFont(Font.BOLD));
+        btn.addActionListener(e -> {
+            Path out = Paths.get(System.getProperty("user.home"), name + ".pdf");
+            status.setText("Exporting\u2026");
+            Dimension pref = content.getPreferredSize();
+            content.setSize(pref.width > 0 ? pref.width : 800, pref.height > 0 ? pref.height : 600);
+            content.validate();
+            try {
+                SwingPdfExporter.from(content)
+                        .pageSize(PageSize.A4)
+                        .exportMode(ExportMode.DATA_REPORT)
+                        .margins(36, 36, 36, 36)
+                        // Basic case: simple shapes and text
+                        .registerHandler(SimpleChartPanel.class, (comp, g2, bounds) -> {
+                            ((SimpleChartPanel) comp).drawVector(g2, bounds);
+                        })
+                        // Complex case: multi-series chart with gradients, curves, and annotations
+                        .registerHandler(ComplexChartPanel.class, (comp, g2, bounds) -> {
+                            ((ComplexChartPanel) comp).drawVector(g2, bounds);
+                        })
+                        .export(out);
+                status.setText("Saved: " + out);
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    Desktop.getDesktop().open(out.toFile());
+                }
+            } catch (Exception ex) {
+                status.setForeground(Color.RED);
+                status.setText("Error: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        });
+        south.add(status);
+        south.add(btn);
+        wrapper.add(south, BorderLayout.SOUTH);
+        return wrapper;
+    }
+
+    private static JPanel buildVectorHandlers() {
+        JPanel p = white();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBorder(pad(16));
+
+        p.add(heading("Vector Component Handlers"));
+        p.add(vgap(4));
+        JLabel desc = new JLabel(
+                "<html>Components below use custom <code>paintComponent()</code> drawing. "
+                + "With <code>registerHandler()</code>, their output is vector PDF "
+                + "(selectable text, resolution-independent shapes) instead of rasterised bitmaps.</html>");
+        desc.setAlignmentX(Component.LEFT_ALIGNMENT);
+        p.add(desc);
+        p.add(vgap(16));
+
+        // ---- Basic case: simple bar chart with labels ----
+        p.add(section("Basic: Bar Chart (shapes + vector text)"));
+        p.add(vgap(4));
+        SimpleChartPanel simpleChart = new SimpleChartPanel();
+        simpleChart.setPreferredSize(new Dimension(700, 280));
+        simpleChart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
+        simpleChart.setAlignmentX(Component.LEFT_ALIGNMENT);
+        p.add(simpleChart);
+        p.add(vgap(16));
+
+        // ---- Complex case: multi-series line chart with gradients and annotations ----
+        p.add(section("Complex: Multi-Series Line Chart (gradients, curves, annotations)"));
+        p.add(vgap(4));
+        ComplexChartPanel complexChart = new ComplexChartPanel();
+        complexChart.setPreferredSize(new Dimension(700, 360));
+        complexChart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 360));
+        complexChart.setAlignmentX(Component.LEFT_ALIGNMENT);
+        p.add(complexChart);
+        p.add(vgap(16));
+
+        // ---- Side-by-side comparison note ----
+        JLabel note = new JLabel(
+                "<html><b>Tip:</b> Zoom into the PDF output to verify that text is selectable "
+                + "and shapes remain sharp at any zoom level. Compare with a rasterised export "
+                + "(without registerHandler) to see the difference.</html>");
+        note.setAlignmentX(Component.LEFT_ALIGNMENT);
+        note.setForeground(new Color(0x555555));
+        p.add(note);
+        p.add(vgap(8));
+
+        return p;
+    }
+
+    // -----------------------------------------------------------------------
+    // Custom-painted components for vector handler demo
+    // -----------------------------------------------------------------------
+
+    /**
+     * Basic case: a bar chart with solid-colour bars, axis lines, and text labels.
+     * Overrides paintComponent so it would normally be rasterised.
+     */
+    static class SimpleChartPanel extends JPanel {
+        private static final long serialVersionUID = 1L;
+        private static final String[] LABELS = {"Q1", "Q2", "Q3", "Q4"};
+        private static final double[] VALUES = {42, 78, 55, 91};
+        private static final Color[] BAR_COLORS = {
+                new Color(0x4285F4), new Color(0xEA4335),
+                new Color(0xFBBC05), new Color(0x34A853)
+        };
+
+        SimpleChartPanel() {
+            setBackground(Color.WHITE);
+            setOpaque(true);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            drawVector((Graphics2D) g, new Rectangle2D.Double(0, 0, getWidth(), getHeight()));
+        }
+
+        void drawVector(Graphics2D g2, Rectangle2D bounds) {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            double x0 = bounds.getX() + 60;
+            double y0 = bounds.getY() + 30;
+            double chartW = bounds.getWidth() - 90;
+            double chartH = bounds.getHeight() - 80;
+
+            // Title
+            g2.setFont(new Font("SansSerif", Font.BOLD, 16));
+            g2.setColor(new Color(0x333333));
+            g2.drawString("Quarterly Revenue ($M)", (float) (x0 + chartW / 2 - 100), (float) (y0 - 10));
+
+            // Y-axis gridlines and labels
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 11));
+            double maxVal = 100;
+            for (int tick = 0; tick <= 100; tick += 20) {
+                double ty = y0 + chartH - (tick / maxVal) * chartH;
+                g2.setColor(new Color(0xDDDDDD));
+                g2.draw(new Line2D.Double(x0, ty, x0 + chartW, ty));
+                g2.setColor(new Color(0x666666));
+                g2.drawString(String.valueOf(tick), (float) (x0 - 30), (float) (ty + 4));
+            }
+
+            // Axis lines
+            g2.setColor(new Color(0x333333));
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.draw(new Line2D.Double(x0, y0, x0, y0 + chartH));
+            g2.draw(new Line2D.Double(x0, y0 + chartH, x0 + chartW, y0 + chartH));
+
+            // Bars
+            double barW = chartW / VALUES.length * 0.65;
+            double gap = chartW / VALUES.length;
+            for (int i = 0; i < VALUES.length; i++) {
+                double bx = x0 + i * gap + (gap - barW) / 2;
+                double bh = (VALUES[i] / maxVal) * chartH;
+                double by = y0 + chartH - bh;
+
+                g2.setColor(BAR_COLORS[i]);
+                g2.fill(new Rectangle2D.Double(bx, by, barW, bh));
+
+                // Bar outline
+                g2.setColor(BAR_COLORS[i].darker());
+                g2.setStroke(new BasicStroke(1f));
+                g2.draw(new Rectangle2D.Double(bx, by, barW, bh));
+
+                // Value label above bar
+                g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+                g2.setColor(new Color(0x333333));
+                String val = "$" + (int) VALUES[i] + "M";
+                g2.drawString(val, (float) (bx + barW / 2 - 16), (float) (by - 6));
+
+                // X-axis label
+                g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                g2.setColor(new Color(0x666666));
+                g2.drawString(LABELS[i], (float) (bx + barW / 2 - 8), (float) (y0 + chartH + 18));
+            }
+        }
+    }
+
+    /**
+     * Complex case: multi-series line chart with gradient fills, cubic curves,
+     * data point markers, a legend, and annotations.
+     */
+    static class ComplexChartPanel extends JPanel {
+        private static final long serialVersionUID = 1L;
+        private static final String[] MONTHS = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        private static final double[] SERIES_A = {12, 19, 28, 35, 42, 55, 62, 58, 49, 40, 30, 22};
+        private static final double[] SERIES_B = {8,  14, 22, 30, 38, 45, 50, 52, 48, 38, 25, 15};
+        private static final double[] SERIES_C = {5,  10, 15, 18, 25, 30, 35, 40, 42, 35, 28, 18};
+
+        ComplexChartPanel() {
+            setBackground(Color.WHITE);
+            setOpaque(true);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            drawVector((Graphics2D) g, new Rectangle2D.Double(0, 0, getWidth(), getHeight()));
+        }
+
+        void drawVector(Graphics2D g2, Rectangle2D bounds) {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            double x0 = bounds.getX() + 60;
+            double y0 = bounds.getY() + 40;
+            double chartW = bounds.getWidth() - 100;
+            double chartH = bounds.getHeight() - 110;
+            double maxVal = 70;
+
+            // Title
+            g2.setFont(new Font("SansSerif", Font.BOLD, 16));
+            g2.setColor(new Color(0x222222));
+            g2.drawString("Monthly Active Users (thousands)", (float) (x0 + chartW / 2 - 140), (float) (y0 - 16));
+
+            // Grid
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
+            g2.setStroke(new BasicStroke(0.5f));
+            for (int tick = 0; tick <= 70; tick += 10) {
+                double ty = y0 + chartH - (tick / maxVal) * chartH;
+                g2.setColor(new Color(0xE8E8E8));
+                g2.draw(new Line2D.Double(x0, ty, x0 + chartW, ty));
+                g2.setColor(new Color(0x888888));
+                g2.drawString(String.valueOf(tick) + "k", (float) (x0 - 32), (float) (ty + 4));
+            }
+
+            // X-axis month labels
+            double stepX = chartW / (MONTHS.length - 1);
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
+            for (int i = 0; i < MONTHS.length; i++) {
+                double mx = x0 + i * stepX;
+                g2.setColor(new Color(0xE0E0E0));
+                g2.draw(new Line2D.Double(mx, y0, mx, y0 + chartH));
+                g2.setColor(new Color(0x666666));
+                g2.drawString(MONTHS[i], (float) (mx - 10), (float) (y0 + chartH + 16));
+            }
+
+            // Axes
+            g2.setColor(new Color(0x333333));
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.draw(new Line2D.Double(x0, y0, x0, y0 + chartH));
+            g2.draw(new Line2D.Double(x0, y0 + chartH, x0 + chartW, y0 + chartH));
+
+            // Series with gradient fill under curves
+            Color colorA = new Color(0x4285F4);
+            Color colorB = new Color(0xEA4335);
+            Color colorC = new Color(0x34A853);
+            drawSeriesWithFill(g2, SERIES_C, colorC, x0, y0, chartW, chartH, maxVal, stepX, 0.15f);
+            drawSeriesWithFill(g2, SERIES_B, colorB, x0, y0, chartW, chartH, maxVal, stepX, 0.15f);
+            drawSeriesWithFill(g2, SERIES_A, colorA, x0, y0, chartW, chartH, maxVal, stepX, 0.15f);
+
+            // Lines and data points on top
+            drawSeriesLine(g2, SERIES_C, colorC, x0, y0, chartW, chartH, maxVal, stepX);
+            drawSeriesLine(g2, SERIES_B, colorB, x0, y0, chartW, chartH, maxVal, stepX);
+            drawSeriesLine(g2, SERIES_A, colorA, x0, y0, chartW, chartH, maxVal, stepX);
+
+            // Annotation: peak value on series A
+            int peakIdx = 6; // July
+            double peakX = x0 + peakIdx * stepX;
+            double peakY = y0 + chartH - (SERIES_A[peakIdx] / maxVal) * chartH;
+            g2.setColor(colorA.darker());
+            g2.setStroke(new BasicStroke(1f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND,
+                    1f, new float[]{4f, 4f}, 0f));
+            g2.draw(new Line2D.Double(peakX, peakY - 8, peakX, peakY - 35));
+            g2.setStroke(new BasicStroke(1f));
+            g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+            g2.drawString("Peak: 62k", (float) (peakX - 22), (float) (peakY - 40));
+
+            // Legend
+            double legendX = x0 + chartW - 180;
+            double legendY = y0 + chartH + 30;
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 11));
+            drawLegendItem(g2, "Product A", colorA, legendX, legendY);
+            drawLegendItem(g2, "Product B", colorB, legendX + 80, legendY);
+            drawLegendItem(g2, "Product C", colorC, legendX + 160, legendY);
+        }
+
+        private static void drawSeriesWithFill(Graphics2D g2, double[] data, Color color,
+                double x0, double y0, double chartW, double chartH, double maxVal,
+                double stepX, float alpha) {
+            Path2D.Double fillPath = new Path2D.Double();
+            double firstX = x0;
+            double firstY = y0 + chartH - (data[0] / maxVal) * chartH;
+            fillPath.moveTo(firstX, y0 + chartH); // baseline
+            fillPath.lineTo(firstX, firstY);
+            for (int i = 1; i < data.length; i++) {
+                double px = x0 + i * stepX;
+                double py = y0 + chartH - (data[i] / maxVal) * chartH;
+                fillPath.lineTo(px, py);
+            }
+            fillPath.lineTo(x0 + (data.length - 1) * stepX, y0 + chartH); // back to baseline
+            fillPath.closePath();
+
+            Color fillColor = new Color(color.getRed(), color.getGreen(), color.getBlue(),
+                    (int) (255 * alpha));
+            g2.setColor(fillColor);
+            g2.fill(fillPath);
+        }
+
+        private static void drawSeriesLine(Graphics2D g2, double[] data, Color color,
+                double x0, double y0, double chartW, double chartH, double maxVal, double stepX) {
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            for (int i = 0; i < data.length - 1; i++) {
+                double px1 = x0 + i * stepX;
+                double py1 = y0 + chartH - (data[i] / maxVal) * chartH;
+                double px2 = x0 + (i + 1) * stepX;
+                double py2 = y0 + chartH - (data[i + 1] / maxVal) * chartH;
+                g2.draw(new Line2D.Double(px1, py1, px2, py2));
+            }
+
+            // Data point markers
+            for (int i = 0; i < data.length; i++) {
+                double px = x0 + i * stepX;
+                double py = y0 + chartH - (data[i] / maxVal) * chartH;
+                g2.setColor(Color.WHITE);
+                g2.fill(new Ellipse2D.Double(px - 4, py - 4, 8, 8));
+                g2.setColor(color);
+                g2.setStroke(new BasicStroke(2f));
+                g2.draw(new Ellipse2D.Double(px - 4, py - 4, 8, 8));
+            }
+        }
+
+        private static void drawLegendItem(Graphics2D g2, String label, Color color,
+                double x, double y) {
+            g2.setColor(color);
+            g2.fill(new Rectangle2D.Double(x, y - 8, 12, 12));
+            g2.setColor(new Color(0x333333));
+            g2.drawString(label, (float) (x + 16), (float) (y + 2));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // AcroForm helpers
+    // -----------------------------------------------------------------------
 
     private static JPanel titledSection2(String title) {
         JPanel p = new JPanel();

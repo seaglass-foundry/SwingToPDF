@@ -1,7 +1,10 @@
 package com.seaglassfoundry.swingtopdf;
 
+import java.awt.Component;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import javax.swing.JComponent;
@@ -14,6 +17,7 @@ import com.seaglassfoundry.swingtopdf.api.LayoutException;
 import com.seaglassfoundry.swingtopdf.api.Orientation;
 import com.seaglassfoundry.swingtopdf.api.PageSize;
 import com.seaglassfoundry.swingtopdf.api.SwingPdfExportException;
+import com.seaglassfoundry.swingtopdf.api.VectorComponentHandler;
 import com.seaglassfoundry.swingtopdf.internal.ExportConfig;
 import com.seaglassfoundry.swingtopdf.internal.ExportEngine;
 
@@ -87,6 +91,8 @@ public final class SwingPdfExporter {
     private HeaderFooter footer;
 
     private boolean acroFormEnabled = false;
+
+    private final Map<Class<?>, VectorComponentHandler> vectorHandlers = new LinkedHashMap<>();
 
     // -----------------------------------------------------------------------
     // Constructor / factory
@@ -309,6 +315,46 @@ public final class SwingPdfExporter {
         return this;
     }
 
+    /**
+     * Register a custom vector handler for a specific component type.
+     *
+     * <p>When the rendering pipeline encounters a component matching {@code type}
+     * (or a subclass of it), the handler is called with a PDF-backed
+     * {@link java.awt.Graphics2D}. All drawing operations performed on this
+     * {@code Graphics2D} are emitted as vector PDF primitives — text remains
+     * selectable and shapes are resolution-independent.
+     *
+     * <p>This is useful for components that perform custom painting (e.g. chart
+     * libraries like JFreeChart) that would otherwise be rasterized.
+     *
+     * <p>User-registered handlers override built-in handlers for the same type.
+     * Multiple handlers may be registered for different types.
+     *
+     * <h2>Example — JFreeChart</h2>
+     * <pre>{@code
+     * SwingPdfExporter.from(chartPanel)
+     *     .registerHandler(ChartPanel.class, (comp, g2, bounds) -> {
+     *         ((ChartPanel) comp).getChart().draw(g2, bounds);
+     *     })
+     *     .pageSize(PageSize.A4)
+     *     .export(file);
+     * }</pre>
+     *
+     * @param <T>     the component type
+     * @param type    the component class to handle; must not be {@code null}
+     * @param handler the vector handler; must not be {@code null}
+     * @return this builder
+     * @throws NullPointerException if {@code type} or {@code handler} is {@code null}
+     * @see VectorComponentHandler
+     * @since 1.1.0
+     */
+    public <T extends Component> SwingPdfExporter registerHandler(
+            Class<T> type, VectorComponentHandler handler) {
+        vectorHandlers.put(Objects.requireNonNull(type, "type must not be null"),
+                           Objects.requireNonNull(handler, "handler must not be null"));
+        return this;
+    }
+
     // -----------------------------------------------------------------------
     // Terminal methods
     // -----------------------------------------------------------------------
@@ -351,7 +397,8 @@ public final class SwingPdfExporter {
                 root, pageSize, orientation, margins, dpi,
                 exportMode, fontResolver, imageHandler,
                 title, author, subject, keywords,
-                header, footer, acroFormEnabled
+                header, footer, acroFormEnabled,
+                Map.copyOf(vectorHandlers)
         );
         return new ExportEngine(config);
     }

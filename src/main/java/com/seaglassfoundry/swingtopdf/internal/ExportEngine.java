@@ -783,6 +783,14 @@ public final class ExportEngine {
         r.register(JToolBar.class,      ContainerHandler.INSTANCE);
         r.register(JViewport.class,     ContainerHandler.INSTANCE);
 
+        // User-supplied vector handlers override built-in handlers for the same type
+        for (var entry : config.vectorHandlers().entrySet()) {
+            @SuppressWarnings("unchecked")
+            Class<? extends java.awt.Component> type =
+                    (Class<? extends java.awt.Component>) entry.getKey();
+            r.register(type, new VectorHandlerAdapter(entry.getValue()));
+        }
+
         return r;
     }
 }
