@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-24
+
+### Added
+
+- `HeaderFooter.html(String)` factory -- a new header/footer mode that renders inline HTML as styled vector text. Supports bold, italic, underline, strikethrough, `<font color>` / `<font size>`, inline CSS (`color`, `font-size`, `font-weight`, `font-style`, `text-decoration`), block breaks (`<br>`, `<p>`, `<div>`, `<h1>`--`<h6>`). Wraps automatically to fit the printable width.
+- `HeaderFooter.of(JComponent)` factory -- render any Swing component as a header or footer through the normal handler pipeline. Works with JLabel, JPanel, or any custom-painted component registered via `registerHandler`. `{page}` / `{pages}` tokens inside JLabel / JTextComponent text are resolved at render time and restored after each page.
+- `HeaderFooter.wrap(boolean)` -- opt-in greedy word-wrap for plain-text bands (default `false`, preserves 1.1 behaviour). HTML and component bands always wrap.
+- `HeaderFooter.Mode` enum (`TEXT`, `HTML`, `COMPONENT`) and `mode()` accessor for introspection.
+- Repeated JTable column headers on continuation pages: multi-page tables now show their column header in a reserved band at the top of every continuation page (not just page 1), with rows rendering at their natural positions below the band.
+
+### Fixed
+
+- Last row of a multi-page JTable is no longer clipped out of the content area on continuation pages. Previously the row's cell fills / grid lines / text glyphs landed below the page clip while the text operators still emitted (extractable but invisible). Page-break snapping now reserves space for the repeated column header.
+
+### Changed
+
+- `HeaderFooter.align(Alignment)` is now a no-op in `Mode.COMPONENT`; the component spans the full printable width so opaque backgrounds, borders, and `BorderLayout` children stretch edge to edge. Use the component's own alignment API (e.g. `JLabel.setHorizontalAlignment`, or the enclosing layout manager) to position visible content within the band.
+
 ## [1.1.0] - 2026-03-31
 
 ### Added

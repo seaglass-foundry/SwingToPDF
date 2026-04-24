@@ -32,7 +32,7 @@ swingtopdf converts any Java Swing component tree into genuine vector PDF output
 <dependency>
     <groupId>com.seaglassfoundry</groupId>
     <artifactId>swingtopdf</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 

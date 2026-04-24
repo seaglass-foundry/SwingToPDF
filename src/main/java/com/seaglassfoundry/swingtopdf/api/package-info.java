@@ -20,7 +20,7 @@
  *   <tr><td>{@link PaginationMode}</td>
  *       <td>Controls scaling and pagination behaviour (single page, auto, or no pagination)</td></tr>
  *   <tr><td>{@link HeaderFooter}</td>
- *       <td>Immutable header/footer band definition with token substitution ({@code {page}}, {@code {pages}})</td></tr>
+ *       <td>Immutable header/footer band definition with token substitution (<code>&#123;page&#125;</code>, <code>&#123;pages&#125;</code>)</td></tr>
  * </table>
  *
  * <h2>Hook interfaces</h2>

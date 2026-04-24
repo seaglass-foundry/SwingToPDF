@@ -161,7 +161,7 @@ All metadata fields accept `null` (the default), which omits the field entirely.
 ### header
 
 ```java
-.header(HeaderFooter.of("Confidential").align(Alignment.RIGHT).color(Color.RED))
+.header(HeaderFooter.of("Draft").align(Alignment.RIGHT).color(Color.RED))
 ```
 
 Renders a text band in the top margin of every page. See [Headers & Footers](headers-footers.md) for full styling options.
@@ -289,7 +289,7 @@ SwingPdfExporter.from(rootPanel)
     .keywords("annual, report, finance, 2024")
 
     // Headers and footers
-    .header(HeaderFooter.of("CONFIDENTIAL")
+    .header(HeaderFooter.of("DRAFT")
         .align(Alignment.RIGHT)
         .fontSize(8f)
         .color(Color.RED))

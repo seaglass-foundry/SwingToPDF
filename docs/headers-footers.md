@@ -1,6 +1,6 @@
 # Headers & Footers
 
-SwingToPDF can render a text band in the top margin (header) and bottom margin (footer) of every page. These bands support dynamic page numbering, alignment, font sizing, colors, and background fills.
+SwingToPDF can render a header band in the top margin and a footer band in the bottom margin of every page. Bands support three rendering modes (plain text, HTML, or any Swing component), dynamic page numbering, alignment, font sizing, colors, and background fills.
 
 ---
 
@@ -117,7 +117,7 @@ Values greater than the margin are clamped automatically.
 ```java
 import java.awt.Color;
 
-HeaderFooter header = HeaderFooter.of("CONFIDENTIAL -- Internal Use Only")
+HeaderFooter header = HeaderFooter.of("DRAFT -- Not for distribution")
     .align(Alignment.RIGHT)
     .fontSize(8f)
     .color(Color.RED);
@@ -165,3 +165,115 @@ The header renders inside the top margin. The footer renders inside the bottom m
 - Use headers for document titles, classification markings, or dates
 - The `backgroundColor` option with a subtle gray is a clean way to visually separate the footer from content
 - Set an explicit `height` when you want a compact band that doesn't fill the entire margin
+
+---
+
+## HTML Headers and Footers (v1.2+)
+
+Use `HeaderFooter.html(String)` to render a band with inline HTML styling. The HTML is parsed and rendered as selectable vector text; bold, italic, underline, strikethrough, color, and size are all preserved.
+
+```java
+HeaderFooter.html(
+    "<b style='color:#2B4C7E'>Quarterly Report</b> " +
+    "&mdash; <span style='color:#888'>Page {page} of {pages}</span>")
+    .fontSize(11f)
+    .height(24f);
+```
+
+**Supported markup:**
+
+| Feature | Example |
+|---------|---------|
+| Bold, italic, underline, strike | `<b>`, `<i>`, `<u>`, `<s>`, `<strong>`, `<em>` |
+| Color | `<font color='red'>`, `<span style='color:#336699'>` |
+| Size (relative) | `<font size='+2'>`, `<font size='-1'>` |
+| Size (absolute, CSS) | `style='font-size:14pt'`, `style='font-size:18px'` |
+| Explicit line break | `<br>` |
+| Paragraph break | `<p>`, `<div>` |
+| Headings | `<h1>` -- `<h6>` |
+
+**Word-wrapping:** HTML bands wrap automatically to fit the printable width. Wrap points are at whitespace boundaries; inline styling is preserved across wrapped lines.
+
+**Token substitution:** `{page}` and `{pages}` resolve in HTML strings just like plain text.
+
+The `.color(Color)` and `.fontSize(float)` settings act as defaults for runs that the HTML doesn't explicitly style.
+
+---
+
+## Component Headers and Footers (v1.2+)
+
+Use `HeaderFooter.of(JComponent)` to render any Swing component as a header or footer. The component is rendered through SwingToPDF's normal handler pipeline, so every component type that works in the document body (JLabel with HTML, JPanel with icons and borders, custom-painted components via `registerHandler`) also works in a band.
+
+### JLabel with HTML and background
+
+```java
+JLabel header = new JLabel(
+    "<html><b style='color:#2B4C7E'>Quarterly Report</b> " +
+    "<span style='color:#999'>&mdash; Draft</span></html>");
+header.setOpaque(true);
+header.setBackground(new Color(0xEFEFEF));
+header.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+
+SwingPdfExporter.from(panel)
+    .header(HeaderFooter.of(header).height(28f))
+    .export(out);
+```
+
+### JLabel with icon
+
+```java
+JLabel header = new JLabel("Warehouse Inventory");
+header.setHorizontalAlignment(SwingConstants.LEFT);
+header.setIcon(new ImageIcon(logoImage));
+header.setIconTextGap(8);
+header.setFont(header.getFont().deriveFont(Font.BOLD, 12f));
+HeaderFooter.of(header).height(28f);
+```
+
+### Composite JPanel footer
+
+```java
+JPanel footer = new JPanel(new BorderLayout());
+footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0xCCCCCC)));
+footer.add(new JLabel("Seaglass Foundry"),         BorderLayout.WEST);
+footer.add(new JLabel("Page {page} of {pages}"),   BorderLayout.EAST);
+HeaderFooter.of(footer).height(24f);
+```
+
+### What component mode honors
+
+| Setting | Behavior in COMPONENT mode |
+|---------|---------------------------|
+| `.backgroundColor(...)` | Paints a band-wide fill **behind** the component |
+| `.height(...)` | Overrides the band height (otherwise the component's preferred height is used, clamped to the margin) |
+| `.align(...)` | **Ignored** -- the component always spans the full printable width. Use `JLabel.setHorizontalAlignment(...)` or the enclosing layout manager to position content within the band |
+| `.color(...)` | **Ignored** -- use the component's `setForeground(...)` |
+| `.fontSize(...)` | **Ignored** -- use the component's `setFont(...)` |
+
+### Token substitution in components
+
+`{page}` and `{pages}` tokens are resolved at render time inside any `JLabel` or `JTextComponent` in the component tree. The originals are restored after each page, so the same component instance can be reused on subsequent exports.
+
+---
+
+## Text Wrapping (v1.2+)
+
+Plain-text bands do not wrap by default (long strings overflow the right edge, preserving the original v1.1 behavior). Enable wrapping with `.wrap(true)`:
+
+```java
+HeaderFooter.of("A deliberately long header that should wrap across multiple lines")
+    .wrap(true)
+    .height(42f);
+```
+
+- Wrapping is a simple greedy word-wrap using the PDF font's glyph metrics.
+- Lines that don't fit in the band height are clipped (they don't push into the content area).
+- HTML and component bands always wrap to fit; `.wrap(true)` is a no-op for those modes.
+
+---
+
+## Which mode should I use?
+
+- **Plain text (`of(String)`)** -- simple, one-line bands. Fastest, smallest PDF.
+- **HTML (`html(String)`)** -- quick inline styling (colors, bold, size, links) without building a Swing component.
+- **Component (`of(JComponent)`)** -- full control: icons, borders, multiple sub-labels, custom painting. Use this when you want the band to look like part of the document, not just a margin annotation.

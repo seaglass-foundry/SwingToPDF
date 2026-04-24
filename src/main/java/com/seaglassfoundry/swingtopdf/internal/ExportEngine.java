@@ -50,8 +50,6 @@ import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,64 +104,6 @@ public final class ExportEngine {
 
     // -----------------------------------------------------------------------
 
-    /**
-     * Draw a header or footer band directly in PDF point coordinates.
-     *
-     * @param band       the band definition
-     * @param cs         the content stream for the current page
-     * @param page       current page number (1-based)
-     * @param pages      total page count
-     * @param pageW      full page width in points
-     * @param pageH      full page height in points
-     * @param marginLeft left margin in points
-     * @param marginRight right margin in points
-     * @param margin     top margin (header) or bottom margin (footer) in points
-     * @param isHeader   true = header (top), false = footer (bottom)
-     */
-    private static void drawBand(HeaderFooter band,
-                                  PDPageContentStream cs,
-                                  int page, int pages,
-                                  float pageW, float pageH,
-                                  float marginLeft, float marginRight,
-                                  float margin, boolean isHeader) throws IOException {
-        String text = band.resolve(page, pages);
-        if (text.isBlank()) return;
-
-        PDType1Font font     = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-        float       fontSize = band.fontSize();
-        float       textW    = font.getStringWidth(text) / 1000f * fontSize;
-        float       printW   = pageW - marginLeft - marginRight;
-
-        // Effective band height: explicit height (clamped to margin), or full margin
-        float bandH = band.height() > 0 ? Math.min(band.height(), margin) : margin;
-
-        float x = switch (band.alignment()) {
-            case LEFT   -> marginLeft + 4f;
-            case RIGHT  -> marginLeft + printW - textW - 4f;
-            default     -> marginLeft + (printW - textW) / 2f;
-        };
-
-        // Band anchored to page edge; baseline vertically centred within bandH
-        float bandY = isHeader ? pageH - bandH : 0;
-        float y     = bandY + bandH / 2f - fontSize / 3f;
-
-        // Background fill
-        java.awt.Color bg = band.backgroundColor();
-        if (bg != null) {
-            cs.setNonStrokingColor(bg.getRed() / 255f, bg.getGreen() / 255f, bg.getBlue() / 255f);
-            cs.addRect(0, bandY, pageW, bandH);
-            cs.fill();
-        }
-
-        java.awt.Color c = band.color();
-        cs.setNonStrokingColor(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f);
-        cs.beginText();
-        cs.setFont(font, fontSize);
-        cs.newLineAtOffset(x, y);
-        cs.showText(text);
-        cs.endText();
-    }
-
     private void applyMetadata(PDDocument doc) {
         PDDocumentInformation info = doc.getDocumentInformation();
         if (config.title()    != null) info.setTitle(config.title());
@@ -205,6 +145,13 @@ public final class ExportEngine {
             float maxRowBound = rowBounds.isEmpty() ? 0f : rowBounds.get(rowBounds.size() - 1);
             int compH = Math.max(visualH, (int) Math.ceil(maxRowBound));
 
+            // Collect every JTable header so we can both (a) reserve space in
+            // the page-break computation for the repeated header on
+            // continuation pages, and (b) draw those repeated headers in a
+            // reserved band at the top of continuation pages.
+            List<TableHeaderInfo> tableHeaders = EdtHelper.callOnEdt(
+                    () -> collectTableHeaders(root, rootOffX, rootOffY));
+
             float dpi        = config.dpi();
             float baseScale  = 72f / dpi;
             float marginLeft = config.margins()[3];
@@ -221,7 +168,7 @@ public final class ExportEngine {
             float pageWidthPx = printW / scale;   // printable width in Swing pixels
 
             float stepPx    = printH / scale; // page height in Swing pixels
-            List<Float> breaksPx = computePageBreaks(root, compH, stepPx, rootOffX, rootOffY, rowBounds);
+            List<Float> breaksPx = computePageBreaks(root, compH, stepPx, rootOffX, rootOffY, rowBounds, tableHeaders);
             int   numPages  = Math.max(1, breaksPx.size());
 
             log.debug("Rendering {} page(s): comp={}x{} px, scale={:.4f}, fitScale={:.4f}",
@@ -236,13 +183,33 @@ public final class ExportEngine {
                 float sliceBottomPx = (pageIdx + 1 < breaksPx.size())
                         ? breaksPx.get(pageIdx + 1) : compH;
 
+                // On continuation pages, reserve a band at the top of the
+                // content area for repeating each table's column header.
+                // headerReservePt is the total PDF height consumed.
+                float headerReservePt = 0f;
+                List<TableHeaderInfo> continuingHeaders = new ArrayList<>();
+                if (pageIdx > 0) {
+                    for (TableHeaderInfo th : tableHeaders) {
+                        if (th.tableAbsY() < sliceTopPx) {
+                            continuingHeaders.add(th);
+                            headerReservePt += th.headerHeightPx() * scale;
+                        }
+                    }
+                }
+
                 PDPage page = new PDPage(new PDRectangle(pageW, pageH));
                 doc.addPage(page);
 
                 try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                    // Content writer: marginTop is shifted down by the reserved
+                    // band so rows at their natural positions fit below the
+                    // repeated header. printableHeightPt is similarly reduced
+                    // to clamp the clip rect.
+                    float contentMarginTop     = marginTop + headerReservePt;
+                    float contentPrintableH    = printH    - headerReservePt;
                     PdfPageWriter writer = new PdfPageWriter(
-                            cs, scale, marginLeft, marginTop, pageH, sliceTopPx, stepPx,
-                            printW, printH);
+                            cs, scale, marginLeft, contentMarginTop, pageH, sliceTopPx, stepPx,
+                            printW, contentPrintableH);
                     HandlerContext ctx = new HandlerContext(
                             writer, fontMapper, config, doc, page,
                             sliceTopPx, sliceBottomPx, pageWidthPx, imageEncoder, acroFormEmitter);
@@ -261,17 +228,32 @@ public final class ExportEngine {
                         }
                     });
 
-                    writer.restore(); // pop clip rect before header/footer
+                    writer.restore(); // pop clip rect before reserved band + header/footer
+
+                    // Render repeated JTable column headers in the reserved
+                    // band at the top of the content area (unclipped). Each
+                    // header is stacked below the previous one.
+                    if (!continuingHeaders.isEmpty()) {
+                        drawRepeatedTableHeaders(
+                                cs, continuingHeaders, sliceTopPx,
+                                scale, marginLeft, marginTop, pageH, printW,
+                                fontMapper, registry, imageEncoder,
+                                pageWidthPx, doc, page);
+                    }
 
                     int pageNum = pageIdx + 1;
                     if (config.header() != null)
-                        drawBand(config.header(), cs, pageNum, numPages,
+                        HeaderFooterRenderer.draw(config.header(), doc, page, cs,
+                                 pageNum, numPages,
                                  pageW, pageH, marginLeft, config.margins()[1],
-                                 config.margins()[0], true);
+                                 config.margins()[0], true,
+                                 fontMapper, registry, imageEncoder, config, baseScale);
                     if (config.footer() != null)
-                        drawBand(config.footer(), cs, pageNum, numPages,
+                        HeaderFooterRenderer.draw(config.footer(), doc, page, cs,
+                                 pageNum, numPages,
                                  pageW, pageH, marginLeft, config.margins()[1],
-                                 config.margins()[2], false);
+                                 config.margins()[2], false,
+                                 fontMapper, registry, imageEncoder, config, baseScale);
                 }
 
                 log.debug("Page {} rendered (sliceTopPx={:.1f})", pageIdx + 1, sliceTopPx);
@@ -298,7 +280,8 @@ public final class ExportEngine {
      * </ol>
      */
     private List<Float> computePageBreaks(JComponent root, float formHPx, float stepPx,
-                                           int offX, int offY, List<Float> rowBounds) {
+                                           int offX, int offY, List<Float> rowBounds,
+                                           List<TableHeaderInfo> tableHeaders) {
 
         List<float[]> keepBounds = EdtHelper.callOnEdt(
                 () -> collectKeepTogetherBounds(root, offX, offY, stepPx));
@@ -307,7 +290,17 @@ public final class ExportEngine {
         float cursor = 0f;
         while (cursor < formHPx) {
             breaks.add(cursor);
-            float ideal = cursor + stepPx;
+
+            // On continuation pages (cursor > 0), each JTable that started on
+            // a previous page has its column header repeated at the top of
+            // this page. Reserve that vertical space so rows don't overflow.
+            float headerReservePx = 0f;
+            if (cursor > 0) {
+                for (TableHeaderInfo th : tableHeaders) {
+                    if (th.tableAbsY() < cursor) headerReservePx += th.headerHeightPx();
+                }
+            }
+            float ideal = cursor + stepPx - headerReservePx;
             if (ideal >= formHPx) break;
 
             // 1. Keep-together: snap UP to the top of the earliest component
@@ -337,6 +330,84 @@ public final class ExportEngine {
             cursor = snapped;
         }
         return breaks;
+    }
+
+    /**
+     * Metadata for a JTable whose column header should be repeated on
+     * continuation pages: its absolute position in root space, the header's
+     * height in Swing pixels, and a reference to the JTableHeader itself
+     * (needed to re-draw it in the reserved band).
+     */
+    private record TableHeaderInfo(int tableAbsX, float tableAbsY,
+                                    float headerHeightPx,
+                                    javax.swing.table.JTableHeader header) {}
+
+    /** Collect one {@link TableHeaderInfo} per JTable in the tree. */
+    private static List<TableHeaderInfo> collectTableHeaders(Component comp, int offX, int offY) {
+        List<TableHeaderInfo> result = new ArrayList<>();
+        collectTableHeadersFrom(comp, offX, offY, result);
+        return result;
+    }
+
+    private static void collectTableHeadersFrom(Component comp, int offX, int offY,
+                                                 List<TableHeaderInfo> result) {
+        if (comp.getWidth() <= 0 || comp.getHeight() <= 0) return;
+        int absY = offY + comp.getY();
+        int absX = offX + comp.getX();
+
+        if (comp instanceof JTable table) {
+            javax.swing.table.JTableHeader header = table.getTableHeader();
+            if (header != null && header.getHeight() > 0) {
+                result.add(new TableHeaderInfo(absX, absY, header.getHeight(), header));
+            }
+        }
+
+        if (comp instanceof Container c) {
+            for (int i = 0; i < c.getComponentCount(); i++) {
+                collectTableHeadersFrom(c.getComponent(i), absX, absY, result);
+            }
+        }
+    }
+
+    /**
+     * Draw the repeated JTable column headers in the reserved band at the
+     * top of the content area. The band lives between pdfY {@code pageH - marginTop}
+     * (top of content) and pdfY {@code pageH - marginTop - sum(headerHeight*scale)}.
+     * Each header stacks below the previous one.
+     */
+    private static void drawRepeatedTableHeaders(
+            PDPageContentStream cs,
+            List<TableHeaderInfo> continuingHeaders,
+            float sliceTopPx,
+            float scale, float marginLeft, float marginTop, float pageH, float printW,
+            DefaultFontMapper fontMapper, HandlerRegistry registry,
+            DeduplicatingImageEncoder imageEncoder,
+            float pageWidthPx, PDDocument doc, PDPage page) throws IOException {
+
+        // A dedicated writer whose content area coincides with the reserved
+        // band. marginTop = the original top margin (so pdfY at swing Y =
+        // sliceTopPx maps to the top of the content area).
+        float bandHeightPt = 0f;
+        for (TableHeaderInfo th : continuingHeaders) bandHeightPt += th.headerHeightPx() * scale;
+        float bandHeightPx = bandHeightPt / scale;
+
+        PdfPageWriter bandWriter = new PdfPageWriter(
+                cs, scale, marginLeft, marginTop, pageH,
+                sliceTopPx, bandHeightPx,
+                printW, bandHeightPt);
+        HandlerContext bandCtx = new HandlerContext(
+                bandWriter, fontMapper, null /* config unused by header handler */, doc, page,
+                sliceTopPx, sliceTopPx + bandHeightPx, pageWidthPx, imageEncoder,
+                null /* no AcroForm in reserved band */);
+        // No traverser required: JTableHeaderHandler doesn't recurse.
+        bandCtx.setTraverser(new ComponentTraverser(registry, bandCtx));
+
+        // Stack each header at swing Y = sliceTopPx + cumulative previous heights.
+        int cursorPx = (int) sliceTopPx;
+        for (TableHeaderInfo th : continuingHeaders) {
+            JTableHeaderHandler.renderAt(th.header(), th.tableAbsX(), cursorPx, bandCtx);
+            cursorPx += (int) th.headerHeightPx();
+        }
     }
 
     /**

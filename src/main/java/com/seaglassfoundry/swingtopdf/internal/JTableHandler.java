@@ -55,19 +55,15 @@ final class JTableHandler implements ComponentHandler {
                 ? table.getModel().getRowCount()
                 : visibleRowCount(table);
 
-        // Detect whether the table header needs to repeat on this page.
-        // This happens in DATA_REPORT mode when the table started on a previous
-        // page (absY < sliceTopPx). The header is pushed to the slice top and
-        // all rows on this page are shifted down by the header height so they
-        // don't overlap with the repeated header.
+        // Header-repeat on continuation pages is disabled: previously we would
+        // render the table header at ctx.sliceTopPx() and shift all rows down
+        // by its height, but this left the last row of each continuation page
+        // overflowing the content clip (the shift wasn't reflected in the
+        // page-break snap or the slice size). The table header appears on the
+        // first page only, via normal traversal of the scroll pane's column
+        // header viewport. Callers that need a repeated header per page can
+        // draw it in the SwingPdfExporter header band.
         int headerRepeatH = 0;
-        if (fullData) {
-            javax.swing.table.JTableHeader header = table.getTableHeader();
-            if (header != null && absY < ctx.sliceTopPx()) {
-                headerRepeatH = header.getHeight();
-                JTableHeaderHandler.renderAt(header, absX, (int) ctx.sliceTopPx(), ctx);
-            }
-        }
 
         renderRows(table, absX, absY, rowCount, ctx.sliceTopPx(), headerRepeatH, ctx);
     }

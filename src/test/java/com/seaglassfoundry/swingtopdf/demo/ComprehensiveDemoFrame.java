@@ -23,6 +23,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Random;
@@ -58,6 +59,7 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.JTree;
+import javax.swing.ImageIcon;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerDateModel;
 import javax.swing.SpinnerListModel;
@@ -1322,48 +1324,97 @@ public class ComprehensiveDemoFrame {
     // -----------------------------------------------------------------------
 
     /**
-     * Like {@link #tabWrapper} but exports with headers, footers, and page numbers
-     * on every page. The content panel uses a colored background to demonstrate
-     * that background fills are carried across page breaks.
+     * Header/Footer showcase tab. A preset dropdown drives which
+     * {@link HeaderFooter} configuration is used on export; the code snippet
+     * panel shows the equivalent Java so users can copy it.
+     *
+     * <p>Each preset exercises a different capability: plain text, text
+     * wrapping, HTML inline styling, HTML multi-run formatting, HTML wrapping,
+     * JLabel-with-HTML, JLabel-with-icon, composite JPanel footer, right
+     * alignment, and tall explicit-height bands.
      */
     private static JPanel hfTabWrapper(String name, JPanel content) {
         JPanel wrapper = new JPanel(new BorderLayout(0, 4));
         wrapper.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
+        // --- Preset selector & code preview (NORTH) --------------------------
+        String[] presetKeys = {
+                "plain-text", "plain-text-wrap", "colored-text", "background-fill",
+                "html-inline", "html-multi-run", "html-wrap",
+                "jlabel-html", "jlabel-icon", "jpanel-footer",
+                "right-aligned", "tall-header",
+                "demonstration-banner", "demonstration-banner-html"
+        };
+        String[] presetLabels = {
+                "1. Plain text (baseline)",
+                "2. Plain text + wrap",
+                "3. Colored text",
+                "4. Background fill",
+                "5. HTML inline styling",
+                "6. HTML multi-run formatting",
+                "7. HTML wrapping",
+                "8. JLabel with HTML",
+                "9. JLabel with icon",
+                "10. JPanel composite footer",
+                "11. Right-aligned JLabel",
+                "12. Tall header (explicit height)",
+                "13. Demonstration banner (green strip + wrapped sentence)",
+                "14. Demonstration banner (HTML-only approximation)"
+        };
+
+        JComboBox<String> presetCombo = new JComboBox<>(presetLabels);
+        presetCombo.setSelectedIndex(0);
+
+        JTextArea snippet = new JTextArea(hfSnippetFor(presetKeys[0]));
+        snippet.setEditable(false);
+        snippet.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+        snippet.setBackground(new Color(0xF7F7F7));
+        snippet.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xCCCCCC)),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+
+        presetCombo.addActionListener(e ->
+                snippet.setText(hfSnippetFor(presetKeys[presetCombo.getSelectedIndex()])));
+
+        JPanel north = new JPanel(new BorderLayout(6, 4));
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        row1.add(new JLabel("Preset:"));
+        row1.add(presetCombo);
+        north.add(row1, BorderLayout.NORTH);
+        JScrollPane snippetScroll = new JScrollPane(snippet);
+        snippetScroll.setPreferredSize(new Dimension(860, 110));
+        north.add(snippetScroll, BorderLayout.CENTER);
+        wrapper.add(north, BorderLayout.NORTH);
+
+        // --- Content panel (CENTER) ------------------------------------------
         JScrollPane scroll = new JScrollPane(content);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         wrapper.add(scroll, BorderLayout.CENTER);
 
+        // --- Export controls (SOUTH) -----------------------------------------
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         JLabel status = new JLabel(" ");
         status.setForeground(new Color(0x3A7D44));
         JButton btn = new JButton("Generate PDF");
         btn.setFont(btn.getFont().deriveFont(Font.BOLD));
         btn.addActionListener(e -> {
-            Path out = Paths.get(System.getProperty("user.home"), name + ".pdf");
+            String key = presetKeys[presetCombo.getSelectedIndex()];
+            Path out = Paths.get(System.getProperty("user.home"), name + "-" + key + ".pdf");
             status.setText("Exporting…");
+            status.setForeground(new Color(0x3A7D44));
             Dimension pref = content.getPreferredSize();
             content.setSize(pref.width > 0 ? pref.width : 800, pref.height > 0 ? pref.height : 600);
             content.validate();
             try {
-                SwingPdfExporter.from(content)
+                HeaderFooter[] hf = hfPreset(key);
+                SwingPdfExporter exporter = SwingPdfExporter.from(content)
                         .pageSize(PageSize.A4)
                         .exportMode(ExportMode.DATA_REPORT)
-                        .margins(54, 36, 54, 36)
-                        .header(HeaderFooter.of("Test Header")
-                                .align(HeaderFooter.Alignment.CENTER)
-                                .fontSize(11f)
-                                .color(Color.RED)
-                                .backgroundColor(Color.GREEN)
-                                .height(24f))
-                        .footer(HeaderFooter.of("Test Footer — Page {page} of {pages}")
-                                .align(HeaderFooter.Alignment.CENTER)
-                                .fontSize(11f)
-                                .color(Color.RED)
-                                .backgroundColor(Color.GREEN)
-                                .height(24f))
-                        .export(out);
+                        .margins(72, 54, 72, 54);
+                if (hf[0] != null) exporter = exporter.header(hf[0]);
+                if (hf[1] != null) exporter = exporter.footer(hf[1]);
+                exporter.export(out);
                 status.setText("Saved: " + out);
                 if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
                     Desktop.getDesktop().open(out.toFile());
@@ -1378,6 +1429,366 @@ public class ComprehensiveDemoFrame {
         south.add(btn);
         wrapper.add(south, BorderLayout.SOUTH);
         return wrapper;
+    }
+
+    /**
+     * Builds the {@link HeaderFooter} pair (header, footer) for a given preset
+     * key. Each preset exercises one styling axis or mode. Returns an array of
+     * length 2; either entry may be {@code null} to omit that band.
+     */
+    private static HeaderFooter[] hfPreset(String key) {
+        return switch (key) {
+
+            // 1. Plain text baseline -- original behaviour, regression guard
+            case "plain-text" -> new HeaderFooter[]{
+                    HeaderFooter.of("Warehouse Inventory Report"),
+                    HeaderFooter.of("Page {page} of {pages}")
+            };
+
+            // 2. Plain text + wrap -- opt-in TEXT-mode word wrap
+            case "plain-text-wrap" -> new HeaderFooter[]{
+                    HeaderFooter.of(
+                            "Warehouse Inventory Report -- this deliberately long header " +
+                            "demonstrates the new .wrap(true) option breaking text across lines " +
+                            "when it exceeds the printable width")
+                            .wrap(true)
+                            .height(42f)
+                            .fontSize(10f)
+                            .color(new Color(0x333333)),
+                    HeaderFooter.of("Page {page} of {pages}")
+            };
+
+            // 3. Colored text
+            case "colored-text" -> new HeaderFooter[]{
+                    HeaderFooter.of("WAREHOUSE INVENTORY")
+                            .color(new Color(0xB22222))
+                            .fontSize(12f),
+                    HeaderFooter.of("DRAFT -- Page {page} of {pages}")
+                            .color(new Color(0x444444))
+                            .fontSize(9f)
+            };
+
+            // 4. Background fill
+            case "background-fill" -> new HeaderFooter[]{
+                    HeaderFooter.of("Warehouse Inventory Report")
+                            .color(Color.WHITE)
+                            .fontSize(11f)
+                            .backgroundColor(new Color(0x2B4C7E))
+                            .height(26f),
+                    HeaderFooter.of("Page {page} of {pages}")
+                            .color(new Color(0x2B4C7E))
+                            .fontSize(9f)
+                            .backgroundColor(new Color(0xE8EEF7))
+                            .height(20f)
+            };
+
+            // 5. HTML inline styling
+            case "html-inline" -> new HeaderFooter[]{
+                    HeaderFooter.html(
+                            "<b>Warehouse Inventory</b> &mdash; " +
+                            "<span style='color:#888888'>Q2 {page}/{pages}</span>")
+                            .fontSize(11f)
+                            .height(24f),
+                    HeaderFooter.html(
+                            "<i>Generated for demonstration</i> &middot; " +
+                            "<b>Page {page} of {pages}</b>")
+                            .fontSize(9f)
+            };
+
+            // 6. HTML multi-run formatting
+            case "html-multi-run" -> new HeaderFooter[]{
+                    HeaderFooter.html(
+                            "<font size='+2' color='#B22222'><b>ACME</b></font> " +
+                            "<font color='#333333'>Warehouse Inventory</font> " +
+                            "<i>(Internal)</i>")
+                            .fontSize(10f)
+                            .height(32f),
+                    HeaderFooter.html(
+                            "<u>Page {page}</u> of <b>{pages}</b> " +
+                            "<span style='color:#888'>&bull; printed {page}/{pages}</span>")
+                            .fontSize(9f)
+            };
+
+            // 7. HTML wrapping
+            case "html-wrap" -> new HeaderFooter[]{
+                    HeaderFooter.html(
+                            "<b style='color:#2B4C7E'>Warehouse Inventory Report</b> &mdash; " +
+                            "<i>this HTML header is long enough to wrap to a second line, " +
+                            "and wrapping preserves the inline styling of each run</i>")
+                            .fontSize(10f)
+                            .height(48f),
+                    HeaderFooter.html("<b>Page {page}</b> of <b>{pages}</b>").fontSize(9f)
+            };
+
+            // 8. JLabel with HTML
+            case "jlabel-html" -> {
+                JLabel h = new JLabel(
+                        "<html><b style='color:#2B4C7E;font-size:13pt'>Warehouse Inventory</b> " +
+                        "<span style='color:#999999'>&mdash; Draft</span></html>");
+                h.setOpaque(true);
+                h.setBackground(new Color(0xEFEFEF));
+                h.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+                h.setHorizontalAlignment(SwingConstants.LEFT);
+
+                JLabel f = new JLabel("<html><span style='color:#666'>Page <b>{page}</b> of <b>{pages}</b></span></html>");
+                f.setHorizontalAlignment(SwingConstants.CENTER);
+
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(h).height(28f),
+                        HeaderFooter.of(f).height(18f)
+                };
+            }
+
+            // 9. JLabel with icon
+            case "jlabel-icon" -> {
+                JLabel h = new JLabel("Warehouse Inventory Report");
+                h.setIcon(new ImageIcon(hfSampleIcon(18, new Color(0x2B4C7E))));
+                h.setIconTextGap(8);
+                h.setFont(h.getFont().deriveFont(Font.BOLD, 12f));
+                h.setForeground(new Color(0x2B4C7E));
+
+                JLabel f = new JLabel("Page {page} of {pages}");
+                f.setHorizontalAlignment(SwingConstants.CENTER);
+                f.setForeground(new Color(0x666666));
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(h).height(28f).align(HeaderFooter.Alignment.LEFT),
+                        HeaderFooter.of(f)
+                };
+            }
+
+            // 10. JPanel composite footer (company left, page right, top border)
+            case "jpanel-footer" -> {
+                JLabel h = new JLabel("Warehouse Inventory Report");
+                h.setFont(h.getFont().deriveFont(Font.BOLD, 12f));
+
+                JPanel footer = new JPanel(new BorderLayout());
+                footer.setOpaque(false);
+                footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0xCCCCCC)));
+                JLabel left = new JLabel("Seaglass Foundry");
+                left.setFont(left.getFont().deriveFont(Font.ITALIC, 9f));
+                left.setForeground(new Color(0x555555));
+                left.setBorder(BorderFactory.createEmptyBorder(4, 4, 0, 0));
+                JLabel right = new JLabel("Page {page} of {pages}");
+                right.setFont(right.getFont().deriveFont(9f));
+                right.setForeground(new Color(0x555555));
+                right.setHorizontalAlignment(SwingConstants.RIGHT);
+                right.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 4));
+                footer.add(left,  BorderLayout.WEST);
+                footer.add(right, BorderLayout.EAST);
+
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(h).align(HeaderFooter.Alignment.LEFT),
+                        HeaderFooter.of(footer).height(24f)
+                };
+            }
+
+            // 11. Right-aligned JLabel
+            case "right-aligned" -> {
+                JLabel h = new JLabel("DRAFT");
+                h.setFont(h.getFont().deriveFont(Font.BOLD, 11f));
+                h.setForeground(new Color(0xB22222));
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(h).align(HeaderFooter.Alignment.RIGHT),
+                        HeaderFooter.of("Page {page} of {pages}").align(HeaderFooter.Alignment.RIGHT)
+                };
+            }
+
+            // 12. Tall header: 2-row JPanel with explicit height
+            case "tall-header" -> {
+                JPanel hp = new JPanel(new GridLayout(2, 1, 0, 2));
+                hp.setOpaque(false);
+                JLabel top = new JLabel("Warehouse Inventory Report");
+                top.setFont(top.getFont().deriveFont(Font.BOLD, 14f));
+                top.setForeground(new Color(0x2B4C7E));
+                JLabel subtitle = new JLabel("Full stock listing -- Q2 2026");
+                subtitle.setFont(subtitle.getFont().deriveFont(Font.ITALIC, 10f));
+                subtitle.setForeground(new Color(0x777777));
+                hp.add(top);
+                hp.add(subtitle);
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(hp).height(52f).align(HeaderFooter.Alignment.LEFT),
+                        HeaderFooter.of("Page {page} of {pages}")
+                };
+            }
+
+            // 13. Demonstration banner: green strip with white centered text
+            // on top, followed by a long sentence that wraps to two lines.
+            // No footer. Uses the standard 120-row warehouse table so the
+            // export spans at least 3 pages.
+            case "demonstration-banner" -> {
+                JPanel hp = new JPanel(new BorderLayout(0, 0));
+                hp.setOpaque(false);
+
+                JLabel banner = new JLabel("DEMONSTRATION", SwingConstants.CENTER);
+                banner.setOpaque(true);
+                banner.setBackground(new Color(0x2E8B57));
+                banner.setForeground(Color.WHITE);
+                banner.setFont(banner.getFont().deriveFont(Font.BOLD, 12f));
+                banner.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
+
+                // NOTE: JLabel HTML in component-mode headers breaks only on
+                // explicit block tags (<br>, <p>, <div>); width-based auto-wrap
+                // is not supported in that path. Use <br> to force two lines.
+                JLabel blurb = new JLabel(
+                        "<html><div style='text-align:center'>" +
+                        "The quick brown fox jumps over the lazy dog while the ambitious " +
+                        "platypus saunters past a sleepy marmoset carrying a bundle of twigs<br>" +
+                        "to demonstrate that a single long sentence can span two lines of " +
+                        "centered body copy at the full printable width of the page." +
+                        "</div></html>");
+                blurb.setHorizontalAlignment(SwingConstants.CENTER);
+                blurb.setFont(blurb.getFont().deriveFont(9f));
+                blurb.setForeground(new Color(0x333333));
+                blurb.setBorder(BorderFactory.createEmptyBorder(4, 12, 0, 12));
+
+                hp.add(banner, BorderLayout.NORTH);
+                hp.add(blurb,  BorderLayout.CENTER);
+
+                yield new HeaderFooter[]{
+                        HeaderFooter.of(hp).height(56f),
+                        null // no footer
+                };
+            }
+
+            // 14. HTML-only approximation of preset 13. HtmlStyledTextRenderer
+            // doesn't support per-block background colours, so the closest
+            // single-call HTML equivalent paints the entire band green and
+            // renders all text in white. Visually similar in spirit but the
+            // "strip + body" split of preset 13 isn't reproducible in pure
+            // HTML without extending the parser to recognise CSS backgrounds.
+            case "demonstration-banner-html" -> new HeaderFooter[]{
+                    HeaderFooter.html(
+                            "<b><font size='+1'>DEMONSTRATION</font></b><br>" +
+                            "The quick brown fox jumps over the lazy dog while the " +
+                            "ambitious platypus saunters past a sleepy marmoset " +
+                            "carrying a bundle of twigs to demonstrate that a single " +
+                            "long sentence can span two lines of centered body copy " +
+                            "at the full printable width of the page.")
+                            .align(HeaderFooter.Alignment.CENTER)
+                            .color(Color.WHITE)
+                            .backgroundColor(new Color(0x2E8B57))
+                            .fontSize(9f)
+                            .height(56f),
+                    null // no footer
+            };
+
+            default -> new HeaderFooter[]{
+                    HeaderFooter.of("Warehouse Inventory"),
+                    HeaderFooter.of("Page {page} of {pages}")
+            };
+        };
+    }
+
+    /** Source-style snippet shown in the preview panel for each preset. */
+    private static String hfSnippetFor(String key) {
+        return switch (key) {
+            case "plain-text" -> """
+                    HeaderFooter.of("Warehouse Inventory Report")
+                    HeaderFooter.of("Page {page} of {pages}")""";
+            case "plain-text-wrap" -> """
+                    HeaderFooter.of("... deliberately long header ...")
+                        .wrap(true)
+                        .height(42f)
+                        .fontSize(10f)""";
+            case "colored-text" -> """
+                    HeaderFooter.of("WAREHOUSE INVENTORY")
+                        .color(new Color(0xB22222))
+                        .fontSize(12f)""";
+            case "background-fill" -> """
+                    HeaderFooter.of("Warehouse Inventory Report")
+                        .color(Color.WHITE)
+                        .backgroundColor(new Color(0x2B4C7E))
+                        .height(26f)""";
+            case "html-inline" -> """
+                    HeaderFooter.html("<b>Warehouse Inventory</b> &mdash; " +
+                                      "<span style='color:#888888'>Q2 {page}/{pages}</span>")""";
+            case "html-multi-run" -> """
+                    HeaderFooter.html("<font size='+2' color='#B22222'><b>ACME</b></font> " +
+                                      "<font color='#333'>Warehouse Inventory</font> <i>(Internal)</i>")""";
+            case "html-wrap" -> """
+                    HeaderFooter.html("<b style='color:#2B4C7E'>Warehouse Inventory Report</b> " +
+                                      "&mdash; <i>long enough to wrap to a second line</i>")
+                        .height(48f)""";
+            case "jlabel-html" -> """
+                    JLabel h = new JLabel("<html><b>Warehouse Inventory</b> " +
+                                          "<span style='color:#999'>&mdash; Draft</span></html>");
+                    h.setOpaque(true);
+                    h.setBackground(new Color(0xEFEFEF));
+                    h.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+                    HeaderFooter.of(h).height(28f);""";
+            case "jlabel-icon" -> """
+                    JLabel h = new JLabel("Warehouse Inventory Report");
+                    h.setIcon(new ImageIcon(iconImage));
+                    h.setFont(h.getFont().deriveFont(Font.BOLD, 12f));
+                    HeaderFooter.of(h).align(Alignment.LEFT).height(28f);""";
+            case "jpanel-footer" -> """
+                    JPanel footer = new JPanel(new BorderLayout());
+                    footer.add(new JLabel("Seaglass Foundry"), BorderLayout.WEST);
+                    footer.add(new JLabel("Page {page} of {pages}"), BorderLayout.EAST);
+                    footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ...));
+                    HeaderFooter.of(footer).height(24f);""";
+            case "right-aligned" -> """
+                    JLabel h = new JLabel("DRAFT");
+                    h.setFont(h.getFont().deriveFont(Font.BOLD, 11f));
+                    h.setForeground(new Color(0xB22222));
+                    HeaderFooter.of(h).align(Alignment.RIGHT);""";
+            case "tall-header" -> """
+                    JPanel hp = new JPanel(new GridLayout(2, 1));
+                    hp.add(new JLabel("Warehouse Inventory Report"));   // bold 14pt
+                    hp.add(new JLabel("Full stock listing -- Q2 2026")); // italic 10pt
+                    HeaderFooter.of(hp).height(52f).align(Alignment.LEFT);""";
+            case "demonstration-banner" -> """
+                    JPanel hp = new JPanel(new BorderLayout());
+                    JLabel banner = new JLabel("DEMONSTRATION", SwingConstants.CENTER);
+                    banner.setOpaque(true);
+                    banner.setBackground(new Color(0x2E8B57));  // green
+                    banner.setForeground(Color.WHITE);
+                    banner.setFont(banner.getFont().deriveFont(Font.BOLD, 12f));
+                    JLabel blurb = new JLabel(
+                        "<html><div style='text-align:center'>" +
+                        "The quick brown fox jumps over the lazy dog while the ambitious " +
+                        "platypus saunters past a sleepy marmoset carrying a bundle of " +
+                        "twigs<br>to demonstrate that a single long sentence can span two " +
+                        "lines of centered body copy at the full printable width of the page." +
+                        "</div></html>");
+                    hp.add(banner, BorderLayout.NORTH);
+                    hp.add(blurb,  BorderLayout.CENTER);
+                    HeaderFooter.of(hp).height(56f);   // no footer""";
+            case "demonstration-banner-html" -> """
+                    // HTML-only approximation: entire band is green (block
+                    // backgrounds aren't supported in the HTML path, so we
+                    // can't isolate the green strip to just the first line).
+                    HeaderFooter.html(
+                        "<b><font size='+1'>DEMONSTRATION</font></b><br>" +
+                        "The quick brown fox jumps over the lazy dog while the " +
+                        "ambitious platypus saunters past a sleepy marmoset carrying " +
+                        "a bundle of twigs to demonstrate that a single long sentence " +
+                        "can span two lines of centered body copy at the full " +
+                        "printable width of the page.")
+                        .align(Alignment.CENTER)
+                        .color(Color.WHITE)
+                        .backgroundColor(new Color(0x2E8B57))
+                        .fontSize(9f)
+                        .height(56f);  // no footer""";
+            default -> "";
+        };
+    }
+
+    /** Build a small diamond icon for the icon-header preset. */
+    private static BufferedImage hfSampleIcon(int size, Color color) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(color);
+        Path2D diamond = new Path2D.Double();
+        diamond.moveTo(size / 2.0, 1);
+        diamond.lineTo(size - 1,   size / 2.0);
+        diamond.lineTo(size / 2.0, size - 1);
+        diamond.lineTo(1,          size / 2.0);
+        diamond.closePath();
+        g.fill(diamond);
+        g.dispose();
+        return img;
     }
 
     private static JPanel buildHeaderFooterTable() {

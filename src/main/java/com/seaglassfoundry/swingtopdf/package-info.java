@@ -9,7 +9,7 @@
  * as its PDF engine.</p>
  *
  * <h2>Quick start</h2>
- * <pre>{@code
+ * <pre>
  * import com.seaglassfoundry.swingtopdf.SwingPdfExporter;
  * import com.seaglassfoundry.swingtopdf.api.PageSize;
  * import com.seaglassfoundry.swingtopdf.api.Orientation;
@@ -19,9 +19,9 @@
  *     .orientation(Orientation.PORTRAIT)
  *     .margins(36, 36, 36, 36)
  *     .title("Quarterly Report")
- *     .footer(HeaderFooter.of("Page {page} of {pages}"))
+ *     .footer(HeaderFooter.of("Page &#123;page&#125; of &#123;pages&#125;"))
  *     .export(Path.of("report.pdf"));
- * }</pre>
+ * </pre>
  *
  * <h2>Export modes</h2>
  * <ul>
