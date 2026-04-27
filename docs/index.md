@@ -14,7 +14,7 @@ SwingToPDF converts any Java Swing component tree into genuine vector PDF output
 | [Export Modes](export-modes.md) | `DATA_REPORT` vs `UI_SNAPSHOT` -- when to use each and how they differ |
 | [Builder Options](builder-options.md) | Complete reference for every `SwingPdfExporter` builder method |
 | [Pagination](pagination.md) | How content flows across pages, margins, keep-together, and scaling |
-| [Headers & Footers](headers-footers.md) | Page banners with dynamic page numbers, styling, and alignment |
+| [Headers & Footers](headers-footers.md) | Page banners with dynamic page numbers, styling, alignment, and per-page variation |
 | [AcroForm Fields](acroform.md) | Exporting interactive, fillable PDF form fields from Swing components |
 | [Fonts](fonts.md) | Font embedding, the resolution chain, custom `FontResolver`, and fallbacks |
 | [Supported Components](components.md) | Every Swing component with handler-specific rendering details |

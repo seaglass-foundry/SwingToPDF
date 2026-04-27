@@ -12,6 +12,7 @@ import javax.swing.JComponent;
 import com.seaglassfoundry.swingtopdf.api.ExportMode;
 import com.seaglassfoundry.swingtopdf.api.FontResolver;
 import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
+import com.seaglassfoundry.swingtopdf.api.HeaderFooterProvider;
 import com.seaglassfoundry.swingtopdf.api.ImageHandler;
 import com.seaglassfoundry.swingtopdf.api.LayoutException;
 import com.seaglassfoundry.swingtopdf.api.Orientation;
@@ -87,8 +88,8 @@ public final class SwingPdfExporter {
     private String subject;
     private String keywords;
 
-    private HeaderFooter header;
-    private HeaderFooter footer;
+    private HeaderFooterProvider headerProvider;
+    private HeaderFooterProvider footerProvider;
 
     private boolean acroFormEnabled = false;
 
@@ -274,18 +275,41 @@ public final class SwingPdfExporter {
     /**
      * Set a header band rendered in the top margin on every page.
      *
+     * <p>For per-page variation (e.g. a different header on the cover page),
+     * use {@link #header(HeaderFooterProvider)} instead.
+     *
      * @param header the header definition; must not be {@code null}
      * @return this builder
      * @throws NullPointerException if {@code header} is {@code null}
      * @see HeaderFooter
      */
     public SwingPdfExporter header(HeaderFooter header) {
-        this.header = Objects.requireNonNull(header);
+        Objects.requireNonNull(header, "header must not be null");
+        this.headerProvider = HeaderFooterProvider.of(header);
+        return this;
+    }
+
+    /**
+     * Set a per-page header provider. Invoked once per page during rendering;
+     * the returned band is drawn in the top margin, or omitted if the provider
+     * returns {@code null} for that page.
+     *
+     * @param provider the per-page header provider; must not be {@code null}
+     * @return this builder
+     * @throws NullPointerException if {@code provider} is {@code null}
+     * @see HeaderFooterProvider
+     * @since 1.3.0
+     */
+    public SwingPdfExporter header(HeaderFooterProvider provider) {
+        this.headerProvider = Objects.requireNonNull(provider, "provider must not be null");
         return this;
     }
 
     /**
      * Set a footer band rendered in the bottom margin on every page.
+     *
+     * <p>For per-page variation (e.g. omitting the page number on the cover
+     * page), use {@link #footer(HeaderFooterProvider)} instead.
      *
      * @param footer the footer definition; must not be {@code null}
      * @return this builder
@@ -293,7 +317,24 @@ public final class SwingPdfExporter {
      * @see HeaderFooter
      */
     public SwingPdfExporter footer(HeaderFooter footer) {
-        this.footer = Objects.requireNonNull(footer);
+        Objects.requireNonNull(footer, "footer must not be null");
+        this.footerProvider = HeaderFooterProvider.of(footer);
+        return this;
+    }
+
+    /**
+     * Set a per-page footer provider. Invoked once per page during rendering;
+     * the returned band is drawn in the bottom margin, or omitted if the
+     * provider returns {@code null} for that page.
+     *
+     * @param provider the per-page footer provider; must not be {@code null}
+     * @return this builder
+     * @throws NullPointerException if {@code provider} is {@code null}
+     * @see HeaderFooterProvider
+     * @since 1.3.0
+     */
+    public SwingPdfExporter footer(HeaderFooterProvider provider) {
+        this.footerProvider = Objects.requireNonNull(provider, "provider must not be null");
         return this;
     }
 
@@ -397,7 +438,7 @@ public final class SwingPdfExporter {
                 root, pageSize, orientation, margins, dpi,
                 exportMode, fontResolver, imageHandler,
                 title, author, subject, keywords,
-                header, footer, acroFormEnabled,
+                headerProvider, footerProvider, acroFormEnabled,
                 Map.copyOf(vectorHandlers)
         );
         return new ExportEngine(config);

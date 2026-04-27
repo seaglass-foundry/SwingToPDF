@@ -277,3 +277,54 @@ HeaderFooter.of("A deliberately long header that should wrap across multiple lin
 - **Plain text (`of(String)`)** -- simple, one-line bands. Fastest, smallest PDF.
 - **HTML (`html(String)`)** -- quick inline styling (colors, bold, size, links) without building a Swing component.
 - **Component (`of(JComponent)`)** -- full control: icons, borders, multiple sub-labels, custom painting. Use this when you want the band to look like part of the document, not just a margin annotation.
+
+---
+
+## Per-Page Variation (v1.3+)
+
+By default a header or footer is the same on every page. To vary the band per page -- for example, a cover-style header on page 1 and a smaller standard header on the remaining pages, or omitting the page-number footer on the cover -- pass a `HeaderFooterProvider` instead of a `HeaderFooter`:
+
+```java
+import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
+import com.seaglassfoundry.swingtopdf.api.HeaderFooterProvider;
+
+HeaderFooter cover    = HeaderFooter.of("COVER -- Quarterly Report").fontSize(14f);
+HeaderFooter standard = HeaderFooter.of("Quarterly Report").align(Alignment.LEFT);
+HeaderFooter pageFtr  = HeaderFooter.of("Page {page} of {pages}");
+
+SwingPdfExporter.from(panel)
+    .header((page, pages) -> page == 1 ? cover : standard)
+    .footer((page, pages) -> page == 1 ? null  : pageFtr)
+    .export(out);
+```
+
+`HeaderFooterProvider` is a functional interface with a single method, `HeaderFooter get(int page, int pages)`. It is invoked once per page during rendering. The arguments are:
+
+- `page` -- the 1-based page number being rendered.
+- `pages` -- the final total page count for the document, known at call time.
+
+Returning `null` for a given page suppresses the band on that page (in the example above, the footer is omitted on page 1).
+
+### Token substitution still works
+
+`{page}` and `{pages}` tokens inside the band returned by the provider are resolved by the rendering pipeline exactly as for the constant-band form -- providers do not need to substitute tokens themselves.
+
+### Single-page documents
+
+If the document turns out to be a single page, the provider is invoked once with `(page=1, pages=1)`. A typical "cover vs. standard" lambda like `(p, n) -> p == 1 ? cover : standard` simply returns the cover branch and the standard branch is never visited -- there is no separate "first page" / "subsequent pages" configuration that could leak into a non-existent page 2.
+
+### Constant bands still work
+
+The existing `header(HeaderFooter)` / `footer(HeaderFooter)` overloads are unchanged. Internally they delegate to `HeaderFooterProvider.of(band)` (a static helper that wraps a constant band as a provider), so all v1.2 code keeps working without modification.
+
+```java
+// These two are equivalent:
+.header(HeaderFooter.of("Report"))
+.header(HeaderFooterProvider.of(HeaderFooter.of("Report")))
+```
+
+### Implementation notes
+
+- Providers should not throw. If a provider needs to react to an unexpected condition, return `null` (suppress the band) rather than propagating an exception.
+- The same `HeaderFooter` instance may be returned from multiple page calls -- the renderer does not assume the provider returns a fresh band each time.
+- For component-mode bands returned from the provider, token substitution walks the component tree on each page and restores the originals afterward, so the same component tree can be reused safely across page calls.

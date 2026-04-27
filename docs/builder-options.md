@@ -166,13 +166,25 @@ All metadata fields accept `null` (the default), which omits the field entirely.
 
 Renders a text band in the top margin of every page. See [Headers & Footers](headers-footers.md) for full styling options.
 
+For per-page variation (e.g. a cover-style header on page 1 and a smaller standard header on the rest), pass a `HeaderFooterProvider` instead:
+
+```java
+.header((page, pages) -> page == 1 ? coverHeader : standardHeader)
+```
+
+See [Headers & Footers / Per-Page Variation](headers-footers.md#per-page-variation-v13) for details.
+
 ### footer
 
 ```java
 .footer(HeaderFooter.of("Page {page} of {pages}"))
 ```
 
-Renders a text band in the bottom margin of every page. Supports `{page}` and `{pages}` tokens.
+Renders a text band in the bottom margin of every page. Supports `{page}` and `{pages}` tokens. Like `header`, accepts a `HeaderFooterProvider` overload for per-page variation (e.g. omitting the page number on the cover):
+
+```java
+.footer((page, pages) -> page == 1 ? null : pageFooter)
+```
 
 ---
 

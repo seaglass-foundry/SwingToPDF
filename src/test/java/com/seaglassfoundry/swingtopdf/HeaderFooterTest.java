@@ -8,11 +8,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
 import com.seaglassfoundry.swingtopdf.api.HeaderFooter.Mode;
+import com.seaglassfoundry.swingtopdf.api.HeaderFooterProvider;
 import com.seaglassfoundry.swingtopdf.api.PageSize;
 
 import javax.swing.*;
 import java.awt.*;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -206,6 +209,184 @@ class HeaderFooterTest {
             assertThat(footer.getText()).isEqualTo("Report Page {page} of {pages}");
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Per-page provider tests (v1.3.0)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void provider_returnsDifferentBandPerPage(@TempDir Path tmp) throws Exception {
+        Path out = tmp.resolve("hf-provider-per-page.pdf");
+
+        JPanel root = new JPanel();
+        root.setBackground(Color.WHITE);
+        root.setSize(400, 2400);
+        root.validate();
+
+        SwingPdfExporter.from(root)
+                .pageSize(PageSize.A4)
+                .header((page, pages) -> page == 1
+                        ? HeaderFooter.of("ZZCOVER")
+                        : HeaderFooter.of("ZZBODY"))
+                .export(out);
+
+        try (PDDocument doc = Loader.loadPDF(out.toFile())) {
+            assertThat(doc.getNumberOfPages()).isGreaterThan(1);
+            PDFTextStripper stripper = new PDFTextStripper();
+
+            stripper.setStartPage(1);
+            stripper.setEndPage(1);
+            String page1 = stripper.getText(doc);
+            assertThat(page1).contains("ZZCOVER");
+            assertThat(page1).doesNotContain("ZZBODY");
+
+            stripper.setStartPage(2);
+            stripper.setEndPage(2);
+            String page2 = stripper.getText(doc);
+            assertThat(page2).contains("ZZBODY");
+            assertThat(page2).doesNotContain("ZZCOVER");
+        }
+    }
+
+    @Test
+    void provider_returnsNullSuppressesBand(@TempDir Path tmp) throws Exception {
+        Path out = tmp.resolve("hf-provider-null.pdf");
+
+        JPanel root = new JPanel();
+        root.setBackground(Color.WHITE);
+        root.setSize(400, 2400);
+        root.validate();
+
+        SwingPdfExporter.from(root)
+                .pageSize(PageSize.A4)
+                .footer((page, pages) -> page == 1
+                        ? null
+                        : HeaderFooter.of("ZZFOOTER"))
+                .export(out);
+
+        try (PDDocument doc = Loader.loadPDF(out.toFile())) {
+            assertThat(doc.getNumberOfPages()).isGreaterThan(1);
+            PDFTextStripper stripper = new PDFTextStripper();
+
+            stripper.setStartPage(1);
+            stripper.setEndPage(1);
+            assertThat(stripper.getText(doc)).doesNotContain("ZZFOOTER");
+
+            stripper.setStartPage(2);
+            stripper.setEndPage(2);
+            assertThat(stripper.getText(doc)).contains("ZZFOOTER");
+        }
+    }
+
+    @Test
+    void provider_seesCorrectPageCount(@TempDir Path tmp) throws Exception {
+        Path out = tmp.resolve("hf-provider-count.pdf");
+
+        JPanel root = new JPanel();
+        root.setBackground(Color.WHITE);
+        root.setSize(400, 2400);
+        root.validate();
+
+        List<int[]> calls = new ArrayList<>();
+        SwingPdfExporter.from(root)
+                .pageSize(PageSize.A4)
+                .header((page, pages) -> {
+                    calls.add(new int[]{page, pages});
+                    return HeaderFooter.of("X");
+                })
+                .export(out);
+
+        try (PDDocument doc = Loader.loadPDF(out.toFile())) {
+            int n = doc.getNumberOfPages();
+            assertThat(calls).hasSize(n);
+            for (int i = 0; i < n; i++) {
+                assertThat(calls.get(i)[0]).isEqualTo(i + 1);
+                assertThat(calls.get(i)[1]).isEqualTo(n);
+            }
+        }
+    }
+
+    @Test
+    void provider_tokenSubstitutionStillWorks(@TempDir Path tmp) throws Exception {
+        Path out = tmp.resolve("hf-provider-tokens.pdf");
+
+        JPanel root = new JPanel();
+        root.setBackground(Color.WHITE);
+        root.setSize(400, 2400);
+        root.validate();
+
+        SwingPdfExporter.from(root)
+                .pageSize(PageSize.A4)
+                .header((page, pages) -> HeaderFooter.of("p={page}/{pages}"))
+                .export(out);
+
+        try (PDDocument doc = Loader.loadPDF(out.toFile())) {
+            int n = doc.getNumberOfPages();
+            PDFTextStripper stripper = new PDFTextStripper();
+            for (int p = 1; p <= n; p++) {
+                stripper.setStartPage(p);
+                stripper.setEndPage(p);
+                assertThat(stripper.getText(doc)).contains("p=" + p + "/" + n);
+            }
+        }
+    }
+
+    @Test
+    void nullProvider_rejected() {
+        JPanel root = new JPanel();
+        root.setSize(400, 600);
+        SwingPdfExporter exporter = SwingPdfExporter.from(root);
+        assertThatThrownBy(() -> exporter.header((HeaderFooterProvider) null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> exporter.footer((HeaderFooterProvider) null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void providerOf_constantWrapper() {
+        HeaderFooter band = HeaderFooter.of("constant");
+        HeaderFooterProvider provider = HeaderFooterProvider.of(band);
+        assertThat(provider.get(1, 1)).isSameAs(band);
+        assertThat(provider.get(2, 5)).isSameAs(band);
+        assertThat(provider.get(99, 100)).isSameAs(band);
+
+        assertThatThrownBy(() -> HeaderFooterProvider.of(null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void provider_singlePageDocument_usesCoverBranch(@TempDir Path tmp) throws Exception {
+        Path out = tmp.resolve("hf-provider-single-page.pdf");
+
+        // Small panel that fits on one page
+        JPanel root = new JPanel();
+        root.setBackground(Color.WHITE);
+        root.setSize(400, 200);
+        root.validate();
+
+        List<int[]> calls = new ArrayList<>();
+        SwingPdfExporter.from(root)
+                .pageSize(PageSize.A4)
+                .header((page, pages) -> {
+                    calls.add(new int[]{page, pages});
+                    return page == 1
+                            ? HeaderFooter.of("ZZCOVER")
+                            : HeaderFooter.of("ZZSTANDARD");
+                })
+                .export(out);
+
+        try (PDDocument doc = Loader.loadPDF(out.toFile())) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(1);
+            String text = new PDFTextStripper().getText(doc);
+            assertThat(text).contains("ZZCOVER");
+            assertThat(text).doesNotContain("ZZSTANDARD");
+
+            assertThat(calls).hasSize(1);
+            assertThat(calls.get(0)).containsExactly(1, 1);
+        }
+    }
+
+    // -----------------------------------------------------------------------
 
     @Test
     void textHeader_wrapsLongString(@TempDir Path tmp) throws Exception {

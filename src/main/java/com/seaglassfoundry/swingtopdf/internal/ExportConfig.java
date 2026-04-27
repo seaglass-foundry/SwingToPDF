@@ -6,7 +6,7 @@ import javax.swing.JComponent;
 
 import com.seaglassfoundry.swingtopdf.api.ExportMode;
 import com.seaglassfoundry.swingtopdf.api.FontResolver;
-import com.seaglassfoundry.swingtopdf.api.HeaderFooter;
+import com.seaglassfoundry.swingtopdf.api.HeaderFooterProvider;
 import com.seaglassfoundry.swingtopdf.api.ImageHandler;
 import com.seaglassfoundry.swingtopdf.api.Orientation;
 import com.seaglassfoundry.swingtopdf.api.PageSize;
@@ -32,8 +32,8 @@ import com.seaglassfoundry.swingtopdf.api.VectorComponentHandler;
  * @param author          PDF document author, or {@code null}
  * @param subject         PDF document subject, or {@code null}
  * @param keywords        PDF document keywords, or {@code null}
- * @param header          header band definition, or {@code null}
- * @param footer          footer band definition, or {@code null}
+ * @param headerProvider  per-page header band provider, or {@code null} for no header
+ * @param footerProvider  per-page footer band provider, or {@code null} for no footer
  * @param acroFormEnabled whether to generate interactive form fields
  * @param vectorHandlers  user-registered vector component handlers (type to handler)
  */
@@ -50,8 +50,8 @@ public record ExportConfig(
         String       author,
         String       subject,
         String       keywords,
-        HeaderFooter header,
-        HeaderFooter footer,
+        HeaderFooterProvider headerProvider,
+        HeaderFooterProvider footerProvider,
         boolean      acroFormEnabled,
         Map<Class<?>, VectorComponentHandler> vectorHandlers
 ) {

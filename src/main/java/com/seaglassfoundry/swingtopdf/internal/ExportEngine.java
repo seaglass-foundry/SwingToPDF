@@ -242,14 +242,18 @@ public final class ExportEngine {
                     }
 
                     int pageNum = pageIdx + 1;
-                    if (config.header() != null)
-                        HeaderFooterRenderer.draw(config.header(), doc, page, cs,
+                    HeaderFooter hdr = config.headerProvider() != null
+                            ? config.headerProvider().get(pageNum, numPages) : null;
+                    if (hdr != null)
+                        HeaderFooterRenderer.draw(hdr, doc, page, cs,
                                  pageNum, numPages,
                                  pageW, pageH, marginLeft, config.margins()[1],
                                  config.margins()[0], true,
                                  fontMapper, registry, imageEncoder, config, baseScale);
-                    if (config.footer() != null)
-                        HeaderFooterRenderer.draw(config.footer(), doc, page, cs,
+                    HeaderFooter ftr = config.footerProvider() != null
+                            ? config.footerProvider().get(pageNum, numPages) : null;
+                    if (ftr != null)
+                        HeaderFooterRenderer.draw(ftr, doc, page, cs,
                                  pageNum, numPages,
                                  pageW, pageH, marginLeft, config.margins()[1],
                                  config.margins()[2], false,

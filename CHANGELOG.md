@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-27
+
+### Added
+
+- `HeaderFooterProvider` -- new functional interface that supplies a `HeaderFooter` per page, enabling per-page variation (e.g. a cover-style header on page 1 and a smaller standard header on the rest, or omitting the page-number footer on the cover). Returning `null` for a given page suppresses the band on that page. Token substitution (`{page}` / `{pages}`) continues to be applied to the band returned by the provider.
+- `SwingPdfExporter.header(HeaderFooterProvider)` and `SwingPdfExporter.footer(HeaderFooterProvider)` builder overloads. The existing `header(HeaderFooter)` / `footer(HeaderFooter)` overloads keep their behaviour and are unchanged for callers (they now delegate to `HeaderFooterProvider.of(...)` internally).
+- `HeaderFooterDemo` exports a second PDF demonstrating the provider form.
+- `ComprehensiveDemoFrame` adds preset 15 ("Demonstration banner per-page"), reusing the green-strip + wrapped-sentence composition of preset 13 on page 1 and just the green strip on subsequent pages.
+
 ## [1.2.0] - 2026-04-24
 
 ### Added

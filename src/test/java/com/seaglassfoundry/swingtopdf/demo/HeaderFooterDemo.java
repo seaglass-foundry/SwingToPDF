@@ -13,14 +13,17 @@ import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Demonstrates header and footer bands rendered in the page margins on every page.
+ * Demonstrates header and footer bands rendered in the page margins.
  *
- * <p>Features shown:
+ * <p>Generates two PDFs side by side:
  * <ul>
- *   <li>Left-aligned header with a document title</li>
- *   <li>Right-aligned header with a date</li>
- *   <li>Centered footer with {@code {page} of {pages}} token substitution</li>
- *   <li>Custom font size and color on the footer</li>
+ *   <li><b>Constant bands</b> — same header/footer on every page (the original
+ *       {@code header(HeaderFooter)} / {@code footer(HeaderFooter)} form).</li>
+ *   <li><b>Per-page provider</b> — a cover-style header on page 1, a smaller
+ *       standard header on subsequent pages, and the page-number footer
+ *       suppressed on page 1 (the new
+ *       {@code header(HeaderFooterProvider)} / {@code footer(HeaderFooterProvider)}
+ *       form, since 1.3.0).</li>
  * </ul>
  *
  * <p>Run with:
@@ -33,7 +36,8 @@ import java.util.concurrent.CountDownLatch;
 public class HeaderFooterDemo {
 
     public static void main(String[] args) throws Exception {
-        Path out = Paths.get("swingtopdf-headerfooter-demo.pdf").toAbsolutePath();
+        Path constantOut = Paths.get("swingtopdf-headerfooter-demo.pdf").toAbsolutePath();
+        Path perPageOut  = Paths.get("swingtopdf-headerfooter-demo-per-page.pdf").toAbsolutePath();
 
         JPanel[] holder = new JPanel[1];
         CountDownLatch latch = new CountDownLatch(1);
@@ -45,7 +49,8 @@ public class HeaderFooterDemo {
         });
         latch.await();
 
-        System.out.println("Exporting to: " + out);
+        // 1. Constant bands -- same header/footer on every page.
+        System.out.println("Exporting constant-band variant to: " + constantOut);
         SwingPdfExporter.from(holder[0])
                 .pageSize(PageSize.A4)
                 .margins(48, 36, 48, 36)   // extra top/bottom margin for bands
@@ -57,11 +62,36 @@ public class HeaderFooterDemo {
                         .align(HeaderFooter.Alignment.CENTER)
                         .fontSize(9f)
                         .color(Color.GRAY))
-                .export(out);
+                .export(constantOut);
+
+        // 2. Per-page provider -- cover-style header on page 1, standard on the
+        //    rest; no footer on the cover page.
+        HeaderFooter coverHeader = HeaderFooter.of("COVER — Quarterly Sales Report")
+                .align(HeaderFooter.Alignment.CENTER)
+                .fontSize(14f)
+                .color(new Color(0x2B4C7E));
+        HeaderFooter standardHeader = HeaderFooter.of("Quarterly Sales Report — Q1 2026")
+                .align(HeaderFooter.Alignment.LEFT)
+                .fontSize(10f)
+                .color(new Color(0x2B4C7E));
+        HeaderFooter pageFooter = HeaderFooter.of("Page {page} of {pages}")
+                .align(HeaderFooter.Alignment.CENTER)
+                .fontSize(9f)
+                .color(Color.GRAY);
+
+        System.out.println("Exporting per-page-provider variant to: " + perPageOut);
+        SwingPdfExporter.from(holder[0])
+                .pageSize(PageSize.A4)
+                .margins(48, 36, 48, 36)
+                .header((page, pages) -> page == 1 ? coverHeader : standardHeader)
+                .footer((page, pages) -> page == 1 ? null : pageFooter)
+                .export(perPageOut);
+
         System.out.println("Done.");
 
         if (java.awt.Desktop.isDesktopSupported()) {
-            java.awt.Desktop.getDesktop().open(out.toFile());
+            java.awt.Desktop.getDesktop().open(constantOut.toFile());
+            java.awt.Desktop.getDesktop().open(perPageOut.toFile());
         }
     }
 

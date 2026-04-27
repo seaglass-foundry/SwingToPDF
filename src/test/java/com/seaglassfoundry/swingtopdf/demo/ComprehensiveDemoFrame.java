@@ -1343,7 +1343,8 @@ public class ComprehensiveDemoFrame {
                 "html-inline", "html-multi-run", "html-wrap",
                 "jlabel-html", "jlabel-icon", "jpanel-footer",
                 "right-aligned", "tall-header",
-                "demonstration-banner", "demonstration-banner-html"
+                "demonstration-banner", "demonstration-banner-html",
+                "demonstration-banner-per-page"
         };
         String[] presetLabels = {
                 "1. Plain text (baseline)",
@@ -1359,7 +1360,8 @@ public class ComprehensiveDemoFrame {
                 "11. Right-aligned JLabel",
                 "12. Tall header (explicit height)",
                 "13. Demonstration banner (green strip + wrapped sentence)",
-                "14. Demonstration banner (HTML-only approximation)"
+                "14. Demonstration banner (HTML-only approximation)",
+                "15. Demonstration banner per-page (full on cover, strip on rest)"
         };
 
         JComboBox<String> presetCombo = new JComboBox<>(presetLabels);
@@ -1407,13 +1409,58 @@ public class ComprehensiveDemoFrame {
             content.setSize(pref.width > 0 ? pref.width : 800, pref.height > 0 ? pref.height : 600);
             content.validate();
             try {
-                HeaderFooter[] hf = hfPreset(key);
                 SwingPdfExporter exporter = SwingPdfExporter.from(content)
                         .pageSize(PageSize.A4)
                         .exportMode(ExportMode.DATA_REPORT)
                         .margins(72, 54, 72, 54);
-                if (hf[0] != null) exporter = exporter.header(hf[0]);
-                if (hf[1] != null) exporter = exporter.footer(hf[1]);
+                if ("demonstration-banner-per-page".equals(key)) {
+                    // Page 1: green DEMONSTRATION strip on top, wrapped sentence
+                    // below (the same composition as preset 13).
+                    JPanel coverPanel = new JPanel(new BorderLayout(0, 0));
+                    coverPanel.setOpaque(false);
+
+                    JLabel coverStrip = new JLabel("DEMONSTRATION", SwingConstants.CENTER);
+                    coverStrip.setOpaque(true);
+                    coverStrip.setBackground(new Color(0x2E8B57));
+                    coverStrip.setForeground(Color.WHITE);
+                    coverStrip.setFont(coverStrip.getFont().deriveFont(Font.BOLD, 12f));
+                    coverStrip.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
+
+                    JLabel blurb = new JLabel(
+                            "<html><div style='text-align:center'>" +
+                            "The quick brown fox jumps over the lazy dog while the ambitious " +
+                            "platypus saunters past a sleepy marmoset carrying a bundle of twigs<br>" +
+                            "to demonstrate that a single long sentence can span two lines of " +
+                            "centered body copy at the full printable width of the page." +
+                            "</div></html>");
+                    blurb.setHorizontalAlignment(SwingConstants.CENTER);
+                    blurb.setFont(blurb.getFont().deriveFont(9f));
+                    blurb.setForeground(new Color(0x333333));
+                    blurb.setBorder(BorderFactory.createEmptyBorder(4, 12, 0, 12));
+
+                    coverPanel.add(coverStrip, BorderLayout.NORTH);
+                    coverPanel.add(blurb,      BorderLayout.CENTER);
+
+                    // Page 2+: just the green strip on its own (separate JLabel
+                    // instance because a Swing component can only have one parent).
+                    JLabel runningStrip = new JLabel("DEMONSTRATION", SwingConstants.CENTER);
+                    runningStrip.setOpaque(true);
+                    runningStrip.setBackground(new Color(0x2E8B57));
+                    runningStrip.setForeground(Color.WHITE);
+                    runningStrip.setFont(runningStrip.getFont().deriveFont(Font.BOLD, 12f));
+                    runningStrip.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
+
+                    HeaderFooter coverBand = HeaderFooter.of(coverPanel).height(56f);
+                    HeaderFooter stripBand = HeaderFooter.of(runningStrip).height(22f);
+
+                    exporter = exporter
+                            .header((page, pages) -> page == 1 ? coverBand : stripBand);
+                    // No footer (matches preset 13).
+                } else {
+                    HeaderFooter[] hf = hfPreset(key);
+                    if (hf[0] != null) exporter = exporter.header(hf[0]);
+                    if (hf[1] != null) exporter = exporter.footer(hf[1]);
+                }
                 exporter.export(out);
                 status.setText("Saved: " + out);
                 if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
@@ -1770,6 +1817,19 @@ public class ComprehensiveDemoFrame {
                         .backgroundColor(new Color(0x2E8B57))
                         .fontSize(9f)
                         .height(56f);  // no footer""";
+            case "demonstration-banner-per-page" -> """
+                    // Per-page provider: full demonstration banner (green strip
+                    // + wrapped sentence) on page 1, just the green strip on
+                    // every subsequent page.
+                    JPanel coverPanel = new JPanel(new BorderLayout());
+                    coverPanel.add(greenStrip(),    BorderLayout.NORTH);   // styled as preset 13
+                    coverPanel.add(wrappedSentence, BorderLayout.CENTER);
+
+                    HeaderFooter coverBand = HeaderFooter.of(coverPanel).height(56f);
+                    HeaderFooter stripBand = HeaderFooter.of(greenStrip()).height(22f);
+
+                    exporter.header((page, pages) -> page == 1 ? coverBand : stripBand);
+                    // No footer.""";
             default -> "";
         };
     }
