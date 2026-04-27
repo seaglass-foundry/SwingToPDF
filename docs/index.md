@@ -1,6 +1,6 @@
 # SwingToPDF Documentation
 
-**Version 1.1.0**
+**Version 1.3.1**
 
 SwingToPDF converts any Java Swing component tree into genuine vector PDF output. Text remains selectable, graphics stay sharp at any zoom level, and the output is a fraction of the size of rasterized alternatives.
 

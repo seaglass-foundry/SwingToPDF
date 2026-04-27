@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-27
+
+### Fixed
+
+- Multi-table column-header repetition: when a panel contained several stacked `JTable`s and spanned multiple pages, every continuation page would stamp the column headers of every table that started on an earlier page, including tables whose body had already finished. Headers are now repeated only for tables whose body extends past the current page top. Regression introduced by the repeated-header feature in 1.2.0.
+
+### Added
+
+- `ComprehensiveDemoFrame` adds a "Multi Tables" tab demonstrating several stacked `JTable`s (Q1 summary, Q2 detail, Q3 transaction log) with distinct header colours, so the per-table-header repetition behaviour is visible by eye.
+
 ## [1.3.0] - 2026-04-27
 
 ### Added

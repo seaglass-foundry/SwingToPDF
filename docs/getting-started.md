@@ -12,20 +12,20 @@ This guide walks you through adding SwingToPDF to your project and producing you
 <dependency>
     <groupId>com.seaglassfoundry</groupId>
     <artifactId>swingtopdf</artifactId>
-    <version>1.1.0</version>
+    <version>1.3.1</version>
 </dependency>
 ```
 
 ### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("com.seaglassfoundry:swingtopdf:1.1.0")
+implementation("com.seaglassfoundry:swingtopdf:1.3.1")
 ```
 
 ### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'com.seaglassfoundry:swingtopdf:1.1.0'
+implementation 'com.seaglassfoundry:swingtopdf:1.3.1'
 ```
 
 Apache PDFBox 3.x is pulled in automatically as a transitive dependency -- you do not need to declare it separately.

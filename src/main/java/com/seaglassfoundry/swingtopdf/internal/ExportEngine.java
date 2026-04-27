@@ -190,7 +190,13 @@ public final class ExportEngine {
                 List<TableHeaderInfo> continuingHeaders = new ArrayList<>();
                 if (pageIdx > 0) {
                     for (TableHeaderInfo th : tableHeaders) {
-                        if (th.tableAbsY() < sliceTopPx) {
+                        // A table needs its header repeated on this page only if it
+                        // started on a previous page AND still has rows to render
+                        // here (i.e. its body extends past the current page top).
+                        // Without the bottom check, a panel containing several
+                        // stacked JTables would stamp every prior table's header
+                        // on every continuation page.
+                        if (th.tableAbsY() < sliceTopPx && th.tableBottomY() > sliceTopPx) {
                             continuingHeaders.add(th);
                             headerReservePt += th.headerHeightPx() * scale;
                         }
@@ -301,7 +307,8 @@ public final class ExportEngine {
             float headerReservePx = 0f;
             if (cursor > 0) {
                 for (TableHeaderInfo th : tableHeaders) {
-                    if (th.tableAbsY() < cursor) headerReservePx += th.headerHeightPx();
+                    if (th.tableAbsY() < cursor && th.tableBottomY() > cursor)
+                        headerReservePx += th.headerHeightPx();
                 }
             }
             float ideal = cursor + stepPx - headerReservePx;
@@ -343,6 +350,7 @@ public final class ExportEngine {
      * (needed to re-draw it in the reserved band).
      */
     private record TableHeaderInfo(int tableAbsX, float tableAbsY,
+                                    float tableBottomY,
                                     float headerHeightPx,
                                     javax.swing.table.JTableHeader header) {}
 
@@ -362,7 +370,13 @@ public final class ExportEngine {
         if (comp instanceof JTable table) {
             javax.swing.table.JTableHeader header = table.getTableHeader();
             if (header != null && header.getHeight() > 0) {
-                result.add(new TableHeaderInfo(absX, absY, header.getHeight(), header));
+                // Body bottom: prefer summed row heights (robust under DATA_REPORT
+                // expansion) but never less than the component's own height.
+                int rowCount = table.getModel().getRowCount();
+                int sumRowH  = 0;
+                for (int r = 0; r < rowCount; r++) sumRowH += table.getRowHeight(r);
+                float bottom = absY + Math.max(table.getHeight(), sumRowH);
+                result.add(new TableHeaderInfo(absX, absY, bottom, header.getHeight(), header));
             }
         }
 

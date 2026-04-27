@@ -172,6 +172,8 @@ When a `JTable` spans multiple pages in `DATA_REPORT` mode, the column headers a
 
 The repeated header occupies the same height as the original and shifts the data rows down accordingly.
 
+When a panel contains several stacked `JTable`s, each continuation page repeats only the header(s) of the table(s) whose body still extends past the page top. A table that finished on an earlier page does not have its header stamped onto later pages.
+
 ---
 
 ## Multi-Page Rendering Internals

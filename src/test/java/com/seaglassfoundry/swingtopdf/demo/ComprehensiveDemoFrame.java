@@ -110,6 +110,7 @@ public class ComprehensiveDemoFrame {
             tabs.addTab("Basic Form",       tabWrapper("basic-form",       buildBasicForm()));
             tabs.addTab("Long Form",        tabWrapper("long-form",        buildLongForm()));
             tabs.addTab("Data Table",       tabWrapper("data-table",       buildDataTable()));
+            tabs.addTab("Multi Tables",     tabWrapper("multi-tables",     buildMultiTables()));
             tabs.addTab("Long List",        tabWrapper("long-list",        buildLongList()));
             tabs.addTab("Tree View",        tabWrapper("tree-view",        buildTreeView()));
             tabs.addTab("Rich Text",        tabWrapper("rich-text",        buildRichText()));
@@ -360,7 +361,113 @@ public class ComprehensiveDemoFrame {
     }
 
     // -----------------------------------------------------------------------
-    // Tab 4 — Long List (200 items)
+    // Tab 4 — Multi Tables (several stacked JTables across pages)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Demonstrates a panel containing several stacked JTables that together
+     * span multiple PDF pages. Each continuation page repeats only the
+     * column header(s) of the table(s) whose body still extends past the
+     * page top -- a finished table's header must not appear on later pages.
+     *
+     * <p>The three tables use distinctive header colours so the behaviour is
+     * easy to verify by eye in the exported PDF.
+     */
+    private static JPanel buildMultiTables() {
+        JPanel p = white();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBorder(pad(12));
+
+        p.add(heading("Quarterly Activity Report"));
+        p.add(vgap(8));
+
+        Random rng = new Random(11);
+
+        // --- Table 1: short summary, finishes on page 1 ---
+        p.add(section("Q1 Summary"));
+        p.add(vgap(4));
+        String[] sumCols = {"Region", "Reps", "Deals", "Revenue"};
+        String[] regions = {"North", "South", "East", "West", "Central"};
+        Object[][] sumData = new Object[regions.length][sumCols.length];
+        for (int i = 0; i < regions.length; i++) {
+            int reps  = 3 + rng.nextInt(8);
+            int deals = 12 + rng.nextInt(60);
+            sumData[i] = new Object[]{
+                regions[i], reps, deals, String.format("$%,.0f", deals * (5000 + rng.nextDouble() * 12000))
+            };
+        }
+        p.add(coloured(buildTable(sumCols, sumData, 22), new Color(0x2B6CB0), 800, 30 + sumData.length * 22));
+        p.add(vgap(14));
+
+        // --- Table 2: medium, spans page boundary into page 2 ---
+        p.add(section("Q2 Sales Detail"));
+        p.add(vgap(4));
+        String[] detCols = {"#", "Sales Rep", "Region", "Product", "Units", "Revenue"};
+        String[] reps    = {"Alice N.", "Bob M.", "Carol W.", "David K.", "Eva R.", "Frank C.", "Grace P."};
+        String[] prods   = {"Widget Pro", "Gadget Plus", "Device Lite", "Platform X", "Suite 360"};
+        Object[][] detData = new Object[40][detCols.length];
+        for (int i = 0; i < detData.length; i++) {
+            int    units = 10 + rng.nextInt(490);
+            double rev   = units * (49.99 + rng.nextDouble() * 450.0);
+            detData[i] = new Object[]{
+                i + 1, reps[rng.nextInt(reps.length)], regions[rng.nextInt(regions.length)],
+                prods[rng.nextInt(prods.length)], units, String.format("$%,.0f", rev)
+            };
+        }
+        p.add(coloured(buildTable(detCols, detData, 20), new Color(0x2F855A), 800, 30 + detData.length * 20));
+        p.add(vgap(14));
+
+        // --- Table 3: long, spans many pages ---
+        p.add(section("Q3 Transaction Log"));
+        p.add(vgap(4));
+        String[] txCols = {"Txn ID", "Date", "Customer", "Amount", "Status"};
+        String[] customers = {"Acme Corp.", "Globex Ltd.", "Initech LLC", "Umbrella Inc.",
+                              "Stark Industries", "Wayne Enterprises", "Cyberdyne", "Soylent Co."};
+        String[] statuses = {"Settled", "Pending", "Refunded", "Disputed"};
+        Object[][] txData = new Object[140][txCols.length];
+        for (int i = 0; i < txData.length; i++) {
+            txData[i] = new Object[]{
+                String.format("TX-%06d", 100000 + i),
+                String.format("2026-%02d-%02d", 7 + i / 30, 1 + i % 28),
+                customers[rng.nextInt(customers.length)],
+                String.format("$%,.2f", 100 + rng.nextDouble() * 9900),
+                statuses[rng.nextInt(statuses.length)]
+            };
+        }
+        p.add(coloured(buildTable(txCols, txData, 20), new Color(0xC05621), 800, 30 + txData.length * 20));
+        p.add(vgap(8));
+        return p;
+    }
+
+    /** Build a JTable with a coloured, bold header. */
+    private static JTable buildTable(String[] cols, Object[][] data, int rowH) {
+        JTable t = new JTable(new DefaultTableModel(data, cols) {
+            private static final long serialVersionUID = 1L;
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        });
+        t.setRowHeight(rowH);
+        t.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        t.setGridColor(new Color(0xCCD6E6));
+        return t;
+    }
+
+    /** Wrap a JTable in a JScrollPane and tint its header with the given colour. */
+    private static JScrollPane coloured(JTable t, Color headerBg, int w, int h) {
+        t.getTableHeader().setBackground(headerBg);
+        t.getTableHeader().setForeground(Color.WHITE);
+        t.getTableHeader().setOpaque(true);
+        t.getTableHeader().setFont(t.getTableHeader().getFont().deriveFont(Font.BOLD));
+        JScrollPane sp = new JScrollPane(t);
+        sp.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        sp.setPreferredSize(new Dimension(w, h));
+        sp.setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
+        return sp;
+    }
+
+    // -----------------------------------------------------------------------
+    // Tab 5 — Long List (200 items)
     // -----------------------------------------------------------------------
 
     private static JPanel buildLongList() {
